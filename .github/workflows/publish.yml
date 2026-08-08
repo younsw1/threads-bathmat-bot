@@ -1,0 +1,48 @@
+name: Threads 자동 발행
+
+on:
+  schedule:
+    # 매일 KST 09:00 (UTC 00:00)
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "true면 실제 발행 없이 생성 결과만 로그로 출력"
+        required: false
+        default: "false"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      - name: 글 생성 및 발행
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            python scripts/publish.py --dry-run
+          else
+            python scripts/publish.py
+          fi
+
+      - name: 발행 이력 커밋
+        run: |
+          git config user.name "threads-bot"
+          git config user.email "actions@github.com"
+          git add data/post_history.json
+          git diff --cached --quiet || git commit -m "chore: update post history"
+          git push
