@@ -1,30 +1,68 @@
 # Threads 자동 발행 봇
 
-본인이 운영하는 스마트스토어 상품(생활/주방용품)을, 실제 구매자 후기를 재료 삼아
-FOMO 후크가 담긴 글로 재구성해 Claude API로 자동 생성하고, 매일 1회 Threads에
-자동 발행하는 시스템입니다. 발행은 GitHub Actions 스케줄로 트리거됩니다.
+스마트스토어 상품을 실제 구매자 후기(또는 상품 정보만)를 재료 삼아 FOMO 후크가 담긴 글로
+재구성해 Claude API로 자동 생성하고 Threads에 발행하는 도구입니다. **BYOK(Bring Your Own Key)
+로컬 앱**으로 동작합니다 — 본인의 Meta(Threads) 앱, Claude API 키, 네이버 커머스API 키를
+직접 연동해서 쓰고, 모든 데이터는 이 컴퓨터의 로컬 SQLite(`data/app.db`)에만 저장됩니다.
+중앙 서버로 전송되는 데이터는 없습니다.
 
-이 계정은 셀러(판매자) 본인 계정입니다. 판매자가 직접 써본 것처럼 1인칭 경험을
-지어내지 않고, "구매하신 분들이 이렇게 말씀해주시더라고요" 식으로 **실제 후기만
-인용/종합**하도록 설계되어 있습니다 (`config/persona.yaml`의 `content_source_rule` 참고).
-없는 효능이나 허위 재고/마감 임박을 지어내는 프롬프트가 아니므로, 후기 데이터를
-정확하게 채워 넣는 것이 품질의 핵심입니다.
+두 가지 모드를 지원합니다:
+- **후기리뷰 모드**: 실제 구매 후기를 인용해서 글을 씁니다. 판매자가 직접 써본 것처럼 1인칭
+  경험을 지어내지 않고, "구매하신 분들이 이렇게 말씀해주시더라고요" 식으로 실제 후기만
+  인용/종합합니다 (`config/persona.yaml`의 `content_source_rule`).
+- **상품홍보 모드**: 아직 후기가 없는 상품용. 네이버 커머스API로 가져온 상품명·썸네일·
+  셀링포인트만으로 글을 쓰고, 후기나 사용 경험을 지어내지 않습니다 (`content_source_rule_promo`).
 
 ## 구성
 
 ```
-src/threads_bot/       콘텐츠 생성 + Threads API 클라이언트 + 후기/이력 관리
-config/persona.yaml    페르소나(톤, FOMO 후크 카테고리, 금지 표현) 정의
-config/product.yaml    홍보 대상 상품 정보 (상품명, 후기 수, 셀링포인트, CTA)
-data/reviews.json      실제 구매자 후기 원본 (직접 채워야 함, data/reviews.example.json 참고)
-data/post_history.json 발행 이력 (중복 회피용, 자동 기록)
-scripts/publish.py     매일 실행되는 엔트리포인트
-scripts/oauth_setup.py 최초 1회, Threads 인증 토큰을 발급받는 CLI
-scripts/refresh_token.py  장기 토큰 자동 갱신 (주간 실행)
-.github/workflows/     스케줄 발행 / 토큰 갱신 워크플로우
+webapp/app.py           로컬 대시보드 (Flask) — 1차 진입점, 여기서 상품 관리·미리보기·발행까지 다 됩니다
+src/threads_bot/         콘텐츠 생성 + Threads/네이버 API 클라이언트 + DB
+  db.py                  SQLite 스키마/CRUD (설정, 상품, 후기, 발행 이력)
+  naver_client.py        네이버 커머스API 클라이언트 (상품 목록 조회)
+  threads_client.py      Threads API 클라이언트 (텍스트/이미지 발행, 답글, 토큰 갱신)
+  content_generator.py   Claude 호출 (후기리뷰/상품홍보 모드 분기)
+config/persona.yaml     페르소나(톤, FOMO 후크 카테고리, 금지 표현) 정의 — 모드 공통
+data/app.db              로컬 DB (git에 포함되지 않음, 최초 실행 시 자동 생성)
+scripts/publish.py       (부록) 상품 1개를 CLI+GitHub Actions로 자동 발행하고 싶을 때
+.github/workflows/       (부록) 스케줄 발행 / 토큰 갱신 워크플로우
 ```
 
-## 0. 상품/후기 데이터 채우기 (가장 먼저 할 일)
+## 로컬 대시보드 실행하기
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate        # Windows
+pip install -r requirements.txt
+python webapp/app.py
+```
+
+브라우저가 자동으로 `http://127.0.0.1:8765`로 열립니다. 처음 실행하면 **설정** 화면으로
+이동하는데, 여기서 아래 3가지를 순서대로 연동합니다 (각 섹션에 화면 내 안내가 있습니다).
+
+1. **Threads(Meta)**: developers.facebook.com에서 본인 앱을 만들고 "Access the Threads API"
+   추가 → 테스터로 본인 계정 등록 → "사용자 토큰 생성기"로 토큰 발급 → 대시보드에 붙여넣기
+   (⚠️ Redirect URI 저장이 안 되면 "앱 설정 → 기본 설정 → 앱 도메인"에 아무 도메인이나
+   먼저 등록해야 합니다 — Meta 콘솔의 알려진 함정입니다)
+2. **Claude API**: console.anthropic.com에서 키 발급
+3. **네이버 커머스API** (상품홍보 모드용, 선택): apicenter.commerce.naver.com에서 본인 명의로
+   "내 스토어 어플리케이션" 발급
+
+각 섹션 아래 "연결 테스트" 버튼으로 바로 성공/실패를 확인할 수 있습니다. 이후 **상품 목록**
+화면에서 네이버 상품을 불러오거나 수동으로 추가하고, 상품 상세에서 모드(후기리뷰/상품홍보)와
+후기 데이터를 채운 뒤 **글 생성하기 → 미리보기(이미지 선택, 링크 위치) → 발행** 순서로 씁니다.
+
+기존에 CLI로 만들어둔 `config/product.yaml`/`data/reviews.json`(욕실매트)은 최초 1회
+`python scripts/migrate_to_db.py`를 실행하면 대시보드의 첫 상품으로 자동 이전됩니다.
+
+---
+
+## 부록: CLI + GitHub Actions로 상품 1개 자동화하기
+
+여러 상품을 대시보드로 관리하는 대신, 상품 1개를 매일 정해진 시간에 자동으로 발행하고
+싶다면 아래처럼 기존 CLI 방식도 그대로 쓸 수 있습니다.
+
+### 0. 상품/후기 데이터 채우기
 
 1. `config/product.yaml`을 열어 `name`, `smartstore_url`, `review_count`, `rating`,
    `key_selling_points`, `cta_text`를 실제 값으로 채웁니다.
@@ -32,7 +70,7 @@ scripts/refresh_token.py  장기 토큰 자동 갱신 (주간 실행)
    `data/reviews.json`에 실제 후기를 옮겨 담습니다. 후기 원문을 그대로(또는 개인정보만
    제거하고) 넣어야, 생성기가 없는 내용을 지어내지 않고 실제 후기에 기반해 글을 씁니다.
 
-## 1. 로컬 준비
+### 1. 로컬 준비 (CLI 방식)
 
 ```bash
 python -m venv .venv
@@ -49,7 +87,7 @@ python scripts/publish.py --dry-run
 
 페르소나 톤/후크가 마음에 들 때까지 `config/persona.yaml`을 수정하며 반복 실행해보세요.
 
-## 2. Meta Developer 앱 만들기 (Threads API 접근)
+### 2. Meta Developer 앱 만들기 (Threads API 접근)
 
 1. https://developers.facebook.com 에 로그인 후 **My Apps → Create App** 으로 새 앱을 만듭니다.
 2. 앱 대시보드에서 **Add use case → Access the Threads API** 를 추가합니다.
@@ -60,7 +98,7 @@ python scripts/publish.py --dry-run
    (앱이 Meta의 App Review를 통과하기 전에는 테스터로 등록된 계정만 발행할 수 있습니다.)
 5. 앱의 **App ID / App Secret**을 확인해둡니다.
 
-## 3. 액세스 토큰 발급
+### 3. 액세스 토큰 발급
 
 `THREADS_APP_ID`, `THREADS_APP_SECRET`, 등록한 Redirect URI를 가지고 아래를 실행합니다.
 
@@ -72,7 +110,7 @@ python scripts/oauth_setup.py --client-id <APP_ID> --client-secret <APP_SECRET> 
 2. 리다이렉트된 주소(예: `https://localhost/callback?code=...`)를 그대로 복사해 콘솔에 붙여넣습니다.
 3. 스크립트가 단기 토큰 → 60일짜리 장기 토큰으로 자동 교환한 뒤 `THREADS_ACCESS_TOKEN`, `THREADS_USER_ID`를 출력합니다.
 
-## 4. GitHub 저장소 및 Secrets 설정
+### 4. GitHub 저장소 및 Secrets 설정
 
 1. GitHub에 새 저장소를 만들고 이 폴더를 push합니다.
 2. 저장소 **Settings → Secrets and variables → Actions**에서 아래 시크릿을 등록합니다.

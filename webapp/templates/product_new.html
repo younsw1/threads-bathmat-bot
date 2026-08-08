@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% block title %}상품 추가{% endblock %}
+{% block content %}
+<h1>상품 직접 추가</h1>
+<p class="help">네이버 API로 가져오지 않고 수동으로 상품을 등록합니다 (기존 후기 데이터가 있는 상품 등).</p>
+<form method="post">
+  <label>상품명
+    <input type="text" name="name" required>
+  </label>
+  <label>모드
+    <select name="mode">
+      <option value="review">후기리뷰</option>
+      <option value="promo">상품홍보</option>
+    </select>
+  </label>
+  <label>카테고리
+    <input type="text" name="category">
+  </label>
+  <label>스마트스토어 URL
+    <input type="text" name="smartstore_url">
+  </label>
+  <label>CTA 문구
+    <input type="text" name="cta_text" value="궁금하신 분은 댓글에 남겨둔 링크 확인해주세요">
+  </label>
+  <button type="submit">추가</button>
+</form>
+{% endblock %}

@@ -1,0 +1,30 @@
+body { font-family: -apple-system, "Malgun Gothic", sans-serif; max-width: 760px; margin: 0 auto; padding: 16px; color: #222; }
+nav { display: flex; gap: 16px; padding-bottom: 12px; border-bottom: 1px solid #ddd; margin-bottom: 16px; }
+nav a { color: #333; text-decoration: none; font-weight: 600; }
+nav a:hover { text-decoration: underline; }
+.flash { padding: 8px 12px; border-radius: 6px; margin-bottom: 12px; }
+.flash-success { background: #e6f4ea; color: #1e7e34; }
+.flash-error { background: #fdecea; color: #b3261e; }
+h1 { font-size: 1.4rem; }
+h2 { font-size: 1.15rem; margin-top: 1.5em; }
+fieldset { border: 1px solid #ddd; border-radius: 8px; margin-bottom: 16px; padding: 12px 16px; }
+legend { font-weight: 600; padding: 0 6px; }
+label { display: block; margin-top: 10px; font-size: 0.9rem; color: #444; }
+input[type=text], input[type=password], input[type=number], textarea, select {
+  width: 100%; box-sizing: border-box; padding: 6px 8px; margin-top: 4px;
+  border: 1px solid #ccc; border-radius: 6px; font-size: 0.95rem;
+}
+textarea { min-height: 80px; }
+button, .btn { margin-top: 10px; padding: 8px 14px; border: none; border-radius: 6px;
+  background: #222; color: #fff; cursor: pointer; font-size: 0.9rem; text-decoration: none; display: inline-block; }
+button.secondary, .btn.secondary { background: #eee; color: #222; }
+button.danger { background: #b3261e; }
+.help { font-size: 0.82rem; color: #666; margin-top: 4px; white-space: pre-line; }
+.card { border: 1px solid #ddd; border-radius: 8px; padding: 12px; margin-bottom: 12px; display: flex; gap: 12px; }
+.card img { width: 72px; height: 72px; object-fit: cover; border-radius: 6px; background: #f2f2f2; }
+.card .meta { flex: 1; }
+.badge { display: inline-block; font-size: 0.75rem; padding: 2px 8px; border-radius: 999px; background: #eee; margin-left: 6px; }
+.post-preview { white-space: pre-wrap; border: 1px solid #ddd; border-radius: 8px; padding: 12px; background: #fafafa; }
+.img-choices { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.img-choices img { width: 64px; height: 64px; object-fit: cover; border-radius: 6px; cursor: pointer; border: 2px solid transparent; }
+.img-choices img.selected { border-color: #222; }

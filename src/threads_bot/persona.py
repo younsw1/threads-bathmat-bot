@@ -19,7 +19,7 @@ class Persona:
             data = yaml.safe_load(f)
         return cls(raw=data)
 
-    def to_system_prompt(self) -> str:
+    def to_system_prompt(self, mode: str = "review") -> str:
         r = self.raw
         hooks = "\n".join(
             f"  - [{h['id']}] {h['name']}: {h['description']}\n"
@@ -28,6 +28,9 @@ class Persona:
         )
         banned = "\n".join(f"  - {b}" for b in r["banned_patterns"])
         style = "\n".join(f"  - {s}" for s in r["style_rules"])
+        content_source_rule = (
+            r["content_source_rule_promo"] if mode == "promo" else r["content_source_rule"]
+        )
 
         return f"""당신은 쓰레드(Threads) 계정 "{r['name']}"을 운영하는 사람입니다.
 니치: {r['niche']}
@@ -37,7 +40,7 @@ class Persona:
 {r['identity_note']}
 
 [콘텐츠 소재 원칙]
-{r['content_source_rule']}
+{content_source_rule}
 
 [말투]
 {r['tone']}

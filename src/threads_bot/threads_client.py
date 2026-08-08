@@ -39,16 +39,26 @@ class ThreadsClient:
         _raise_for_error(resp)
         return resp.json()
 
-    def create_container(self, text: str) -> str:
+    def create_container(
+        self,
+        text: str,
+        reply_to_id: str | None = None,
+        image_url: str | None = None,
+    ) -> str:
         if len(text) > TEXT_MAX_LEN:
             raise ValueError(f"본문이 {TEXT_MAX_LEN}자를 초과합니다 ({len(text)}자).")
+        data = {
+            "media_type": "IMAGE" if image_url else "TEXT",
+            "text": text,
+            "access_token": self.access_token,
+        }
+        if image_url:
+            data["image_url"] = image_url
+        if reply_to_id:
+            data["reply_to_id"] = reply_to_id
         resp = requests.post(
             f"{GRAPH_BASE}/{self.user_id}/threads",
-            data={
-                "media_type": "TEXT",
-                "text": text,
-                "access_token": self.access_token,
-            },
+            data=data,
             timeout=30,
         )
         _raise_for_error(resp)
@@ -66,9 +76,14 @@ class ThreadsClient:
         _raise_for_error(resp)
         return resp.json()["id"]
 
-    def publish_text(self, text: str) -> str:
+    def publish_text(
+        self,
+        text: str,
+        reply_to_id: str | None = None,
+        image_url: str | None = None,
+    ) -> str:
         """컨테이너 생성 후 즉시 발행까지 한번에 수행."""
-        creation_id = self.create_container(text)
+        creation_id = self.create_container(text, reply_to_id=reply_to_id, image_url=image_url)
         return self.publish(creation_id)
 
 

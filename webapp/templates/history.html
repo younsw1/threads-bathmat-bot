@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}발행 이력{% endblock %}
+{% block content %}
+<h1>발행 이력 — {{ product.name }}</h1>
+<a class="btn secondary" href="{{ url_for('product_detail', product_id=product.id) }}">상품 설정으로 돌아가기</a>
+
+{% for p in posts %}
+  <div class="card">
+    <div class="meta">
+      <div class="help">{{ p.timestamp }} · <span class="badge">{{ p.hook_category }}</span> {{ p.topic_summary }}</div>
+      <div class="post-preview">{{ p.text }}</div>
+      {% if p.reply_text %}<div class="help">↳ 답글: {{ p.reply_text }}</div>{% endif %}
+    </div>
+  </div>
+{% else %}
+  <p class="help">아직 발행 이력이 없습니다.</p>
+{% endfor %}
+{% endblock %}

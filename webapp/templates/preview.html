@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}미리보기{% endblock %}
+{% block content %}
+<h1>발행 미리보기 — {{ product.name }}</h1>
+
+<p><span class="badge">{{ draft.hook_category }}</span> {{ draft.topic_summary }} ({{ draft.text|length }}자)</p>
+<div class="post-preview">{{ draft.text }}</div>
+
+{% if reply_text %}
+  <h2>자동 답글</h2>
+  <div class="post-preview">{{ reply_text }}</div>
+{% endif %}
+
+{% if product.image_urls %}
+<h2>첨부 이미지 선택</h2>
+<form method="post" action="{{ url_for('select_image', product_id=product.id) }}">
+  <div class="img-choices">
+    <label>
+      <input type="radio" name="image_url" value="" {% if not draft.selected_image %}checked{% endif %} onchange="this.form.submit()">
+      없음
+    </label>
+    {% for img in product.image_urls %}
+      <img src="{{ img }}" class="{{ 'selected' if draft.selected_image == img else '' }}"
+           onclick="this.closest('form').image_url.value='{{ img }}'; this.closest('form').submit();">
+    {% endfor %}
+  </div>
+  <input type="hidden" name="image_url" value="{{ draft.selected_image or '' }}">
+</form>
+{% endif %}
+
+<form method="post" action="{{ url_for('publish', product_id=product.id) }}">
+  <label>
+    <input type="checkbox" name="use_image" {% if draft.selected_image %}checked{% endif %}
+      {% if not draft.selected_image %}disabled{% endif %}> 선택한 이미지와 함께 발행
+  </label>
+  <button type="submit">Threads에 발행</button>
+</form>
+
+<form method="post" action="{{ url_for('generate_draft', product_id=product.id) }}">
+  <button type="submit" class="secondary">다시 생성</button>
+</form>
+{% endblock %}

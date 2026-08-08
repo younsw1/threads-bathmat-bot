@@ -60,11 +60,22 @@ def _build_history_note(recent_records: list[dict]) -> str:
     )
 
 
-def _build_reviews_block(reviews: list[dict[str, Any]]) -> str:
+def _build_reviews_block(reviews: list[dict[str, Any]], mode: str) -> str:
+    if mode == "promo":
+        return "(이 상품은 '상품홍보' 모드입니다. 후기 데이터를 제공하지 않으니 후기를 인용하지 마세요.)"
     if not reviews:
         return "(제공된 후기 데이터가 없습니다. 이 경우 상품 정보만으로 일반적인 소개 글을 쓰되, 없는 후기 내용을 지어내지 마세요.)"
     lines = [f'  - id={r["id"]}: "{r["text"]}"' for r in reviews]
     return "[이번에 참고할 실제 구매자 후기]\n" + "\n".join(lines)
+
+
+def _build_link_note(link_placement: str, smartstore_url: str) -> str:
+    if link_placement == "inline":
+        return (
+            "[링크 표기 방식] 이번 글은 본문 마지막 줄에 실제 상품 링크를 직접 포함하세요: "
+            f"{smartstore_url}\n(별도 답글은 달리지 않습니다.)"
+        )
+    return "[링크 표기 방식] 본문에 URL을 쓰지 마세요. 발행 직후 자동으로 답글에 링크가 달립니다."
 
 
 def generate(
@@ -74,10 +85,18 @@ def generate(
     recent_records: list[dict],
     client: anthropic.Anthropic | None = None,
 ) -> GeneratedPost:
+    mode = product.raw.get("mode", "review")
+    link_placement = product.raw.get("link_placement", "reply")
     client = client or anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
-    system_prompt = persona.to_system_prompt() + "\n\n" + product.to_context_block()
+    system_prompt = (
+        persona.to_system_prompt(mode)
+        + "\n\n"
+        + product.to_context_block()
+        + "\n\n"
+        + _build_link_note(link_placement, product.raw.get("smartstore_url", ""))
+    )
     history_note = _build_history_note(recent_records)
-    reviews_block = _build_reviews_block(reviews)
+    reviews_block = _build_reviews_block(reviews, mode)
 
     message = client.messages.create(
         model=MODEL,

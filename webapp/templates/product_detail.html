@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}{{ product.name }}{% endblock %}
+{% block content %}
+<h1>{{ product.name }}</h1>
+{% if product.thumbnail_url %}<img src="{{ product.thumbnail_url }}" style="max-width:160px;border-radius:8px;"><br>{% endif %}
+
+<form method="post" action="{{ url_for('update_product', product_id=product.id) }}">
+  <fieldset>
+    <legend>모드</legend>
+    <label><input type="radio" name="mode" value="review" {% if product.mode == 'review' %}checked{% endif %}> 후기리뷰 (실제 구매 후기를 인용해서 글 작성)</label>
+    <label><input type="radio" name="mode" value="promo" {% if product.mode == 'promo' %}checked{% endif %}> 상품홍보 (후기 없이 상품 정보만으로 글 작성)</label>
+  </fieldset>
+
+  <fieldset>
+    <legend>링크 위치</legend>
+    <label><input type="radio" name="link_placement" value="reply" {% if product.link_placement == 'reply' %}checked{% endif %}> 답글로 자동 첨부 (도달률에 유리, 권장)</label>
+    <label><input type="radio" name="link_placement" value="inline" {% if product.link_placement == 'inline' %}checked{% endif %}> 본문에 직접 포함</label>
+  </fieldset>
+
+  <label>스마트스토어 URL
+    <input type="text" name="smartstore_url" value="{{ product.smartstore_url or '' }}">
+  </label>
+  <label>CTA 문구
+    <input type="text" name="cta_text" value="{{ product.cta_text or '' }}">
+  </label>
+  <label>핵심 셀링포인트 (한 줄에 하나씩, 상품홍보 모드에서 특히 중요)
+    <textarea name="key_selling_points">{{ product.key_selling_points | join('\n') }}</textarea>
+  </label>
+  <button type="submit">저장</button>
+</form>
+
+{% if product.mode == 'review' %}
+<h2>실제 구매 후기</h2>
+<p class="help">여기 등록된 후기만 글 생성에 근거로 사용됩니다. 스마트스토어 후기를 그대로 옮겨 붙여넣으세요.</p>
+<form method="post" action="{{ url_for('add_review', product_id=product.id) }}">
+  <label>후기 내용
+    <textarea name="text" required></textarea>
+  </label>
+  <label>평점 (선택)
+    <input type="number" name="rating" min="1" max="5">
+  </label>
+  <label>태그 (선택, 예: 내구성/설치용이)
+    <input type="text" name="tag">
+  </label>
+  <button type="submit">후기 추가</button>
+</form>
+
+{% for r in reviews %}
+  <div class="card">
+    <div class="meta">
+      <div>{{ r.text }}</div>
+      <div class="help">{% if r.rating %}평점 {{ r.rating }} · {% endif %}{{ r.tag or '' }}</div>
+      <form method="post" action="{{ url_for('delete_review', product_id=product.id, review_id=r.id) }}">
+        <button type="submit" class="danger">삭제</button>
+      </form>
+    </div>
+  </div>
+{% else %}
+  <p class="help">등록된 후기가 없습니다.</p>
+{% endfor %}
+{% endif %}
+
+<form method="post" action="{{ url_for('generate_draft', product_id=product.id) }}">
+  <button type="submit">글 생성하기</button>
+</form>
+<a class="btn secondary" href="{{ url_for('product_history', product_id=product.id) }}">발행 이력 보기</a>
+{% endblock %}

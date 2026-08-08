@@ -30,3 +30,9 @@ class Product:
 핵심 셀링포인트:
 {points or '  - (미입력)'}
 글 말미 CTA: "{r.get('cta_text', '')}\""""
+
+    def reply_link_text(self) -> str:
+        r = self.raw
+        label = r.get("reply_link_text", "상품 보러가기")
+        url = r.get("smartstore_url", "")
+        return f"{label}\n{url}" if url else label

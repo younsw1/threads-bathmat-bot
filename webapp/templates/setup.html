@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}설정{% endblock %}
+{% block content %}
+<h1>API 연동 설정</h1>
+<p class="help">여기서 입력한 값은 전부 이 컴퓨터의 로컬 파일(data/app.db)에만 저장됩니다. 외부 서버로 전송되지 않습니다.</p>
+
+<form method="post" action="{{ url_for('setup') }}">
+
+  <fieldset>
+    <legend>1. Threads (Meta)</legend>
+    <div class="help">1) developers.facebook.com 에서 앱 생성 → "Access the Threads API" 유즈케이스 추가
+2) 이용 사례 → Threads API 액세스 → 설정 화면에서 App ID/Secret 확인
+3) ⚠️ Redirect URI 저장이 안 되면, 먼저 "앱 설정 → 기본 설정 → 앱 도메인"에 아무 도메인이나(예: example.com) 등록해두고 다시 시도하세요 (Meta 콘솔의 알려진 이슈)
+4) "사용자 토큰 생성기" 섹션에서 본인 계정을 Threads 테스터로 추가 → 초대 수락 → 토큰 생성 → 아래에 붙여넣기</div>
+    <label>Threads App ID
+      <input type="text" name="threads_app_id" value="{{ settings.threads_app_id or '' }}">
+    </label>
+    <label>Threads App Secret
+      <input type="password" name="threads_app_secret" value="{{ settings.threads_app_secret or '' }}">
+    </label>
+    <label>Access Token (사용자 토큰 생성기에서 발급받은 값)
+      <input type="password" name="threads_access_token" value="{{ settings.threads_access_token or '' }}">
+    </label>
+    <label>User ID
+      <input type="text" name="threads_user_id" value="{{ settings.threads_user_id or '' }}">
+    </label>
+  </fieldset>
+
+  <fieldset>
+    <legend>2. Claude API</legend>
+    <div class="help">console.anthropic.com → API Keys → Create Key</div>
+    <label>API Key
+      <input type="password" name="anthropic_api_key" value="{{ settings.anthropic_api_key or '' }}">
+    </label>
+  </fieldset>
+
+  <fieldset>
+    <legend>3. 네이버 커머스API (상품홍보 모드에서 상품 목록 가져올 때 필요)</legend>
+    <div class="help">apicenter.commerce.naver.com → 로그인 → "내 스토어 어플리케이션" 발급 → Client ID/Secret 확인
+(위임 인증이 아니라 본인 명의로 직접 발급받아야 합니다. 리뷰 모드만 쓸 거면 비워둬도 됩니다.)</div>
+    <label>Client ID
+      <input type="text" name="naver_client_id" value="{{ settings.naver_client_id or '' }}">
+    </label>
+    <label>Client Secret
+      <input type="password" name="naver_client_secret" value="{{ settings.naver_client_secret or '' }}">
+    </label>
+  </fieldset>
+
+  <button type="submit">저장</button>
+</form>
+
+<h2>연결 테스트</h2>
+<form method="post" action="{{ url_for('test_threads') }}" style="display:inline"><button class="secondary" type="submit">Threads 테스트</button></form>
+<form method="post" action="{{ url_for('test_claude') }}" style="display:inline"><button class="secondary" type="submit">Claude 테스트</button></form>
+<form method="post" action="{{ url_for('test_naver') }}" style="display:inline"><button class="secondary" type="submit">네이버 테스트</button></form>
+{% endblock %}

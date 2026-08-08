@@ -51,6 +51,10 @@ def main() -> int:
     print("-" * 60)
     print(post.text)
     print("=" * 60)
+    reply_text = product.reply_link_text()
+    print("[reply] 본문 발행 직후 아래 내용으로 답글이 달립니다:")
+    print(reply_text)
+    print("=" * 60)
 
     post_id = None
     if not args.dry_run:
@@ -63,6 +67,9 @@ def main() -> int:
 
         post_id = client.publish_text(post.text)
         print(f"[published] post_id={post_id}")
+
+        reply_id = client.publish_text(reply_text, reply_to_id=post_id)
+        print(f"[published reply] reply_id={reply_id}")
 
         history.append(
             history.PostRecord(
