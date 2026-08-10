@@ -11,6 +11,71 @@ from .product import Product
 
 MODEL = "claude-sonnet-5"
 
+SUGGEST_SELLING_POINTS_TOOL = {
+    "name": "suggest_selling_points",
+    "description": "상품의 핵심 셀링포인트 후보 3개를 제출한다.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "points": {
+                "type": "array",
+                "items": {"type": "string"},
+                "minItems": 3,
+                "maxItems": 3,
+                "description": "각 15~30자 내외의 짧고 구체적인 셀링포인트 3개",
+            },
+        },
+        "required": ["points"],
+    },
+}
+
+
+def suggest_selling_points(
+    product: Product,
+    reviews: list[dict[str, Any]],
+    client: anthropic.Anthropic | None = None,
+) -> list[str]:
+    """상품명/카테고리/(있다면) 실제 후기를 근거로 핵심 셀링포인트 3개를 추천한다.
+    후기가 없는 상품홍보 모드에서는 상품 정보만으로 일반적인 강점을 제안하되,
+    없는 효능/수치를 지어내지 않도록 지시한다."""
+    client = client or anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    r = product.raw
+    reviews_block = (
+        "\n".join(f'  - "{rv["text"]}"' for rv in reviews)
+        if reviews
+        else "(등록된 후기 없음 — 상품명/카테고리만으로 일반적인 강점을 제안하세요. 구체적 수치나 효능을 지어내지 마세요.)"
+    )
+
+    message = client.messages.create(
+        model=MODEL,
+        max_tokens=512,
+        system=(
+            "당신은 이커머스 상품 마케팅 카피라이터입니다. 주어진 상품 정보만으로 "
+            "핵심 셀링포인트 3개를 뽑습니다. 과장하거나 근거 없는 효능/수치를 지어내지 않습니다."
+        ),
+        tools=[SUGGEST_SELLING_POINTS_TOOL],
+        tool_choice={"type": "tool", "name": "suggest_selling_points"},
+        messages=[
+            {
+                "role": "user",
+                "content": (
+                    f"상품명: {r.get('name') or '(미입력)'}\n"
+                    f"카테고리: {r.get('category') or '(미입력)'}\n"
+                    f"가격: {r.get('price') or '(미입력)'}\n\n"
+                    f"[참고할 실제 후기]\n{reviews_block}\n\n"
+                    "suggest_selling_points 도구를 호출해서 결과를 제출하세요."
+                ),
+            }
+        ],
+    )
+
+    for block in message.content:
+        if block.type == "tool_use" and block.name == "suggest_selling_points":
+            return list(block.input["points"])[:3]
+
+    raise RuntimeError("Claude가 suggest_selling_points 도구를 호출하지 않았습니다.")
+
+
 GENERATE_POST_TOOL = {
     "name": "generate_post",
     "description": "쓰레드에 올릴 글 하나를 확정해서 제출한다.",
@@ -34,8 +99,17 @@ GENERATE_POST_TOOL = {
                 "type": "string",
                 "description": "쓰레드에 실제로 게시할 최종 글 본문. 500자(공백 포함) 이내.",
             },
+            "topic_tag": {
+                "type": "string",
+                "description": (
+                    "이 글의 Threads 주제 태그(topic_tag) 1개. 본문에 #을 붙여 쓰지 않고 "
+                    "별도 필드로만 제출한다. 1~50자, 마침표(.)나 앤퍼샌드(&) 사용 금지. "
+                    "여러 단어를 나열하지 말고 자연스러운 한 단어~짧은 구(예: 자취템, 욕실인테리어) "
+                    "하나만 쓴다. 글마다 가장 핵심적인 주제로 다양하게 바꾼다."
+                ),
+            },
         },
-        "required": ["hook_category", "topic_summary", "source_review_ids", "text"],
+        "required": ["hook_category", "topic_summary", "source_review_ids", "text", "topic_tag"],
     },
 }
 
@@ -46,6 +120,7 @@ class GeneratedPost:
     topic_summary: str
     text: str
     source_review_ids: list[str]
+    topic_tag: str = ""
 
 
 def _build_history_note(recent_records: list[dict]) -> str:
@@ -126,6 +201,7 @@ def generate(
                 topic_summary=data["topic_summary"],
                 text=data["text"].strip(),
                 source_review_ids=data.get("source_review_ids", []),
+                topic_tag=data.get("topic_tag", "").strip()[:50],
             )
 
     raise RuntimeError("Claude가 generate_post 도구를 호출하지 않았습니다.")

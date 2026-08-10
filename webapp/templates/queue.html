@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}예약 대기열{% endblock %}
+{% block content %}
+<h1>예약 발행 대기열</h1>
+<p class="help">
+  1) 상품 상세 화면에서 "대기열에 추가" → 여기서 검토/재생성 → "승인" →
+  2) "GitHub에 반영" → 3) 설정한 시간대 안의 랜덤한 시각에 GitHub Actions가 그대로 발행합니다.
+  이 창(로컬 앱)을 꺼도 3번은 그대로 진행됩니다.
+</p>
+
+<fieldset>
+  <legend>발행 시간대 (켠 개수 = 하루 최대 발행 건수, 최대 4건)</legend>
+  <form method="post" action="{{ url_for('queue_settings') }}">
+    <label><input type="checkbox" name="morning" {% if windows.morning %}checked{% endif %}> 아침 (07:00~09:00)</label>
+    <label><input type="checkbox" name="lunch" {% if windows.lunch %}checked{% endif %}> 점심 (12:00~13:00)</label>
+    <label><input type="checkbox" name="afternoon" {% if windows.afternoon %}checked{% endif %}> 오후 (15:00~17:00)</label>
+    <label><input type="checkbox" name="evening" {% if windows.evening %}checked{% endif %}> 저녁 (19:00~22:00, 참여도 가장 높음)</label>
+    <button type="submit">시간대 저장</button>
+  </form>
+</fieldset>
+
+<form method="post" action="{{ url_for('queue_sync_to_github') }}" style="display:inline">
+  <button type="submit">승인된 항목 GitHub에 반영</button>
+</form>
+<form method="post" action="{{ url_for('queue_pull_from_github') }}" style="display:inline">
+  <button type="submit" class="secondary">GitHub에서 발행 결과 가져오기</button>
+</form>
+
+<h2>대기열 ({{ items | length }}건)</h2>
+{% if not items %}
+  <p class="help">대기열이 비어 있습니다. 상품 상세 화면에서 "대기열에 추가"를 눌러주세요.</p>
+{% endif %}
+
+{% for item in items %}
+  <div class="card">
+    {% if item.image_url %}<img src="{{ item.image_url }}">{% endif %}
+    <div class="meta">
+      <strong>{{ item.product_name }}</strong>
+      <span class="badge">{{ item.status }}</span>
+      <span class="badge">{{ item.hook_category }}</span>
+      {% if item.topic_tag %}<span class="badge">#{{ item.topic_tag }}</span>{% endif %}
+      {% if item.id in eta_by_id %}<div class="help">예상 발행: {{ eta_by_id[item.id] }} (시간대 안 무작위 시각이라 근사치)</div>{% endif %}
+      <div class="post-preview">{{ item.text }}</div>
+      {% if item.reply_text %}<div class="help">↳ 답글: {{ item.reply_text }}</div>{% endif %}
+      <div style="margin-top:8px;">
+        {% if item.status != 'ready' %}
+        <form method="post" action="{{ url_for('queue_approve', item_id=item.id) }}" style="display:inline">
+          <button type="submit">승인</button>
+        </form>
+        {% endif %}
+        {% if item.status != 'published' %}
+        <form method="post" action="{{ url_for('queue_regenerate', item_id=item.id) }}" style="display:inline">
+          <button type="submit" class="secondary">다시 생성</button>
+        </form>
+        <form method="post" action="{{ url_for('queue_delete', item_id=item.id) }}" style="display:inline">
+          <button type="submit" class="danger">삭제</button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endfor %}
+{% endblock %}

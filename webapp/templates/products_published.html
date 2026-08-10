@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}발행된 상품{% endblock %}
+{% block content %}
+<h1>발행된 상품 ({{ products | length }}개)</h1>
+<a class="btn secondary" href="{{ url_for('products') }}">전체 상품 목록으로</a>
+
+{% if not products %}
+  <p class="help">아직 발행된 상품이 없습니다.</p>
+{% endif %}
+
+{% for p in products %}
+  <div class="card">
+    {% if p.thumbnail_url %}<img src="{{ p.thumbnail_url }}" alt="">{% endif %}
+    <div class="meta">
+      <a href="{{ url_for('product_detail', product_id=p.id) }}"><strong>{{ p.name }}</strong></a>
+      <span class="badge">{{ '후기리뷰' if p.mode == 'review' else '상품홍보' }}</span>
+      <span class="badge">발행 {{ p.post_count }}회</span>
+      <div class="help">마지막 발행: {{ p.last_published_at }}</div>
+      <a class="btn secondary" href="{{ url_for('product_history', product_id=p.id) }}">발행 이력</a>
+    </div>
+  </div>
+{% endfor %}
+{% endblock %}

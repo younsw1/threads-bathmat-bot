@@ -1,0 +1,40 @@
+name: Threads 예약 발행 (랜덤 시간대)
+
+on:
+  schedule:
+    # KST 07:00(아침) / 12:00(점심) / 19:00(저녁) 시작 -> UTC 기준
+    - cron: "0 22 * * *"
+    - cron: "0 3 * * *"
+    - cron: "0 10 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  scheduled_publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 의존성 설치
+        run: pip install -r requirements.txt
+
+      - name: 대기열에서 랜덤 시각에 발행
+        env:
+          THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
+          THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
+        run: python scripts/scheduled_publish.py
+
+      - name: 대기열/이력 커밋
+        run: |
+          git config user.name "threads-bot"
+          git config user.email "actions@github.com"
+          git add data/queue.json data/queue_history.json
+          git diff --cached --quiet || git commit -m "chore: scheduled publish result"
+          git push

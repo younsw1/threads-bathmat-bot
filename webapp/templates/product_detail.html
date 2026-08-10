@@ -2,7 +2,20 @@
 {% block title %}{{ product.name }}{% endblock %}
 {% block content %}
 <h1>{{ product.name }}</h1>
-{% if product.thumbnail_url %}<img src="{{ product.thumbnail_url }}" style="max-width:160px;border-radius:8px;"><br>{% endif %}
+
+<h2>이미지 ({{ product.image_urls | length }}장)</h2>
+<div class="img-choices">
+  {% for img in product.image_urls %}
+    <img src="{{ img }}">
+  {% else %}
+    <img src="{{ product.thumbnail_url }}" style="width:64px;height:64px;object-fit:cover;border-radius:6px;">
+  {% endfor %}
+</div>
+{% if product.origin_product_no %}
+<form method="post" action="{{ url_for('fetch_images', product_id=product.id) }}">
+  <button type="submit" class="secondary">네이버에서 이미지 더 가져오기</button>
+</form>
+{% endif %}
 
 <form method="post" action="{{ url_for('update_product', product_id=product.id) }}">
   <fieldset>
@@ -27,6 +40,10 @@
     <textarea name="key_selling_points">{{ product.key_selling_points | join('\n') }}</textarea>
   </label>
   <button type="submit">저장</button>
+</form>
+<form method="post" action="{{ url_for('suggest_points', product_id=product.id) }}">
+  <button type="submit" class="secondary">AI로 셀링포인트 3개 추천받기</button>
+  <div class="help">상품명/카테고리{% if product.mode == 'review' %}·등록된 후기{% endif %}를 참고해 Claude가 3개를 제안해서 바로 저장합니다. 필요하면 위 텍스트란에서 수정 후 "저장"을 다시 눌러주세요.</div>
 </form>
 
 {% if product.mode == 'review' %}
@@ -60,8 +77,11 @@
 {% endfor %}
 {% endif %}
 
-<form method="post" action="{{ url_for('generate_draft', product_id=product.id) }}">
-  <button type="submit">글 생성하기</button>
+<form method="post" action="{{ url_for('generate_draft', product_id=product.id) }}" style="display:inline">
+  <button type="submit">글 생성하기 (바로 발행)</button>
+</form>
+<form method="post" action="{{ url_for('queue_add', product_id=product.id) }}" style="display:inline">
+  <button type="submit" class="secondary">예약 대기열에 추가</button>
 </form>
 <a class="btn secondary" href="{{ url_for('product_history', product_id=product.id) }}">발행 이력 보기</a>
 {% endblock %}

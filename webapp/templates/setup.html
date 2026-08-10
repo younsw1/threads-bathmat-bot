@@ -44,6 +44,9 @@
     <label>Client Secret
       <input type="password" name="naver_client_secret" value="{{ settings.naver_client_secret or '' }}">
     </label>
+    <label>스토어 URL 슬러그 (smartstore.naver.com/<b>이 부분</b>) — "상품 불러오기" 시 API로 자동 조회/갱신됩니다. 조회 실패 시에만 직접 입력하세요.
+      <input type="text" name="naver_store_slug" placeholder="예: chaummadang" value="{{ settings.naver_store_slug or '' }}">
+    </label>
   </fieldset>
 
   <button type="submit">저장</button>

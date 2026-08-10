@@ -8,6 +8,8 @@
 <body>
 <nav>
   <a href="{{ url_for('products') }}">상품 목록</a>
+  <a href="{{ url_for('published_products') }}">발행된 상품</a>
+  <a href="{{ url_for('queue_list') }}">예약 대기열</a>
   <a href="{{ url_for('new_product') }}">상품 추가</a>
   <a href="{{ url_for('setup') }}">설정</a>
 </nav>

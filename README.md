@@ -22,10 +22,14 @@ src/threads_bot/         콘텐츠 생성 + Threads/네이버 API 클라이언�
   naver_client.py        네이버 커머스API 클라이언트 (상품 목록 조회)
   threads_client.py      Threads API 클라이언트 (텍스트/이미지 발행, 답글, 토큰 갱신)
   content_generator.py   Claude 호출 (후기리뷰/상품홍보 모드 분기)
+  schedule.py            예약 발행 시간대 계산 + queue.json 등 공용 입출력
 config/persona.yaml     페르소나(톤, FOMO 후크 카테고리, 금지 표현) 정의 — 모드 공통
 data/app.db              로컬 DB (git에 포함되지 않음, 최초 실행 시 자동 생성)
+data/queue.json           예약 대기열 내보내기 (git 커밋 대상, GitHub Actions가 읽음)
+data/queue_history.json   예약 발행 결과 로그 (GitHub Actions가 기록, git 커밋 대상)
+scripts/scheduled_publish.py  GitHub Actions에서 실행되는 예약 발행 스크립트
 scripts/publish.py       (부록) 상품 1개를 CLI+GitHub Actions로 자동 발행하고 싶을 때
-.github/workflows/       (부록) 스케줄 발행 / 토큰 갱신 워크플로우
+.github/workflows/       스케줄 발행(예약 대기열) / (부록) 단일상품 자동발행 / 토큰 갱신
 ```
 
 ## 로컬 대시보드 실행하기
@@ -54,6 +58,29 @@ python webapp/app.py
 
 기존에 CLI로 만들어둔 `config/product.yaml`/`data/reviews.json`(욕실매트)은 최초 1회
 `python scripts/migrate_to_db.py`를 실행하면 대시보드의 첫 상품으로 자동 이전됩니다.
+
+## 예약 발행 (PC를 꺼도 랜덤한 시간대에 자동 발행)
+
+로컬 대시보드는 켜져 있을 때만 동작하므로, "PC를 꺼둬도 알아서 올라가는" 예약 발행은
+**GitHub Actions(클라우드)**가 대신합니다. 글 생성(Claude 호출)은 로컬에서 미리 끝내고
+검토까지 마친 다음, 완성된 텍스트만 GitHub에 반영해두면 GitHub Actions가 정해진 시간대
+안의 랜덤한 시각에 그대로 발행합니다.
+
+1. 상품 상세 화면에서 **"예약 대기열에 추가"** → 상단 메뉴 **예약 대기열**에서 생성된 글을
+   검토(필요하면 "다시 생성") → **"승인"**
+2. **예약 대기열** 화면에서 발행 시간대를 켭니다 (아침 07~09시 / 점심 12~13시 / 저녁
+   19~23시, 저녁이 참여도가 가장 높음 — 켠 시간대 개수만큼 하루에 발행됩니다)
+3. **"승인된 항목 GitHub에 반영"** 클릭 → `data/queue.json`, `data/schedule_settings.json`이
+   커밋·푸시됩니다
+4. 이후 GitHub Actions(`scheduled_publish.yml`)가 켜둔 시간대마다 자동으로 깨어나서, 그
+   시간대 안의 무작위 시각까지 기다렸다가 대기열에서 가장 오래된 글 1건을 그대로 발행합니다
+   (이 단계는 Claude를 호출하지 않고, 로컬에서 승인한 텍스트를 그대로 씁니다)
+5. 나중에 로컬 대시보드에서 **"GitHub에서 발행 결과 가져오기"**를 누르면 실제 발행 이력이
+   로컬 `posts`/발행 이력 화면에 반영됩니다
+
+**필요한 GitHub Secrets**: `THREADS_ACCESS_TOKEN`, `THREADS_USER_ID` (기존 CLI 자동화를
+설정했다면 이미 등록되어 있을 수 있습니다 — 저장소 Settings → Secrets and variables →
+Actions에서 확인하세요). `refresh_token.yml`이 있다면 토큰도 자동으로 계속 갱신됩니다.
 
 ---
 

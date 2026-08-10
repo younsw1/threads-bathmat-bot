@@ -18,7 +18,9 @@ CREATE TABLE IF NOT EXISTS settings (
     threads_user_id TEXT,
     threads_token_expires_at TEXT,
     naver_client_id TEXT,
-    naver_client_secret TEXT
+    naver_client_secret TEXT,
+    naver_store_slug TEXT,
+    naver_sync_page INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS products (
@@ -26,11 +28,13 @@ CREATE TABLE IF NOT EXISTS products (
     name TEXT NOT NULL,
     mode TEXT NOT NULL DEFAULT 'review' CHECK (mode IN ('review', 'promo')),
     naver_product_no TEXT,
+    origin_product_no TEXT,
     price INTEGER,
     thumbnail_url TEXT,
     image_urls TEXT DEFAULT '[]',
     smartstore_url TEXT,
     category TEXT,
+    reg_date TEXT,
     review_count INTEGER DEFAULT 0,
     rating REAL DEFAULT 0,
     key_selling_points TEXT DEFAULT '[]',
@@ -57,7 +61,25 @@ CREATE TABLE IF NOT EXISTS posts (
     reply_text TEXT,
     post_id TEXT,
     reply_post_id TEXT,
-    source_review_ids TEXT DEFAULT '[]'
+    source_review_ids TEXT DEFAULT '[]',
+    topic_tag TEXT
+);
+
+CREATE TABLE IF NOT EXISTS scheduled_queue (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'ready', 'published', 'failed')),
+    text TEXT NOT NULL,
+    topic_tag TEXT,
+    hook_category TEXT,
+    topic_summary TEXT,
+    image_url TEXT,
+    reply_text TEXT,
+    source_review_ids TEXT DEFAULT '[]',
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    published_at TEXT,
+    post_id TEXT,
+    reply_post_id TEXT
 );
 """
 
@@ -79,6 +101,31 @@ def init_db(path: Path = DEFAULT_DB_PATH) -> None:
     with connect(path) as conn:
         conn.executescript(SCHEMA)
         conn.execute("INSERT OR IGNORE INTO settings (id) VALUES (1)")
+        _migrate(conn)
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """기존 DB에 없는 컬럼을 뒤늦게 추가한다 (ALTER TABLE ADD COLUMN, 있으면 무시)."""
+    existing = {row[1] for row in conn.execute("PRAGMA table_info(settings)")}
+    if "naver_store_slug" not in existing:
+        conn.execute("ALTER TABLE settings ADD COLUMN naver_store_slug TEXT")
+    if "naver_sync_page" not in existing:
+        conn.execute("ALTER TABLE settings ADD COLUMN naver_sync_page INTEGER DEFAULT 0")
+    if "schedule_windows" not in existing:
+        conn.execute(
+            "ALTER TABLE settings ADD COLUMN schedule_windows TEXT DEFAULT "
+            "'{\"morning\":false,\"lunch\":false,\"evening\":true}'"
+        )
+
+    product_cols = {row[1] for row in conn.execute("PRAGMA table_info(products)")}
+    if "origin_product_no" not in product_cols:
+        conn.execute("ALTER TABLE products ADD COLUMN origin_product_no TEXT")
+    if "reg_date" not in product_cols:
+        conn.execute("ALTER TABLE products ADD COLUMN reg_date TEXT")
+
+    post_cols = {row[1] for row in conn.execute("PRAGMA table_info(posts)")}
+    if "topic_tag" not in post_cols:
+        conn.execute("ALTER TABLE posts ADD COLUMN topic_tag TEXT")
 
 
 # --- settings -----------------------------------------------------------
@@ -119,6 +166,21 @@ def create_product(data: dict[str, Any], path: Path = DEFAULT_DB_PATH) -> int:
 def list_products(path: Path = DEFAULT_DB_PATH) -> list[dict[str, Any]]:
     with connect(path) as conn:
         rows = conn.execute("SELECT * FROM products ORDER BY created_at DESC").fetchall()
+        return [_product_row_to_dict(r) for r in rows]
+
+
+def list_published_products(path: Path = DEFAULT_DB_PATH) -> list[dict[str, Any]]:
+    """한 번이라도 발행된 적 있는 상품만, 최근 발행일 순으로 반환한다."""
+    with connect(path) as conn:
+        rows = conn.execute(
+            """
+            SELECT products.*, COUNT(posts.id) AS post_count, MAX(posts.timestamp) AS last_published_at
+            FROM products
+            JOIN posts ON posts.product_id = products.id
+            GROUP BY products.id
+            ORDER BY last_published_at DESC
+            """
+        ).fetchall()
         return [_product_row_to_dict(r) for r in rows]
 
 
@@ -211,3 +273,60 @@ def recent_review_ids(product_id: int, n: int = 14, path: Path = DEFAULT_DB_PATH
     for p in recent_posts(product_id, n, path):
         ids.update(str(i) for i in p.get("source_review_ids") or [])
     return ids
+
+
+# --- scheduled_queue -------------------------------------------------------
+
+def _queue_row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
+    d = dict(row)
+    d["source_review_ids"] = json.loads(d.get("source_review_ids") or "[]")
+    return d
+
+
+def add_queue_item(data: dict[str, Any], path: Path = DEFAULT_DB_PATH) -> int:
+    data = dict(data)
+    if "source_review_ids" in data and not isinstance(data["source_review_ids"], str):
+        data["source_review_ids"] = json.dumps(data["source_review_ids"], ensure_ascii=False)
+    cols = ", ".join(data.keys())
+    placeholders = ", ".join("?" for _ in data)
+    with connect(path) as conn:
+        cur = conn.execute(
+            f"INSERT INTO scheduled_queue ({cols}) VALUES ({placeholders})", list(data.values())
+        )
+        return cur.lastrowid
+
+
+def list_queue_items(path: Path = DEFAULT_DB_PATH) -> list[dict[str, Any]]:
+    with connect(path) as conn:
+        rows = conn.execute(
+            """
+            SELECT scheduled_queue.*, products.name AS product_name
+            FROM scheduled_queue JOIN products ON products.id = scheduled_queue.product_id
+            ORDER BY scheduled_queue.created_at DESC
+            """
+        ).fetchall()
+        return [_queue_row_to_dict(r) for r in rows]
+
+
+def get_queue_item(item_id: int, path: Path = DEFAULT_DB_PATH) -> dict[str, Any] | None:
+    with connect(path) as conn:
+        row = conn.execute("SELECT * FROM scheduled_queue WHERE id = ?", (item_id,)).fetchone()
+        return _queue_row_to_dict(row) if row else None
+
+
+def update_queue_item(item_id: int, values: dict[str, Any], path: Path = DEFAULT_DB_PATH) -> None:
+    values = dict(values)
+    if "source_review_ids" in values and not isinstance(values["source_review_ids"], str):
+        values["source_review_ids"] = json.dumps(values["source_review_ids"], ensure_ascii=False)
+    if not values:
+        return
+    cols = ", ".join(f"{k} = ?" for k in values)
+    with connect(path) as conn:
+        conn.execute(
+            f"UPDATE scheduled_queue SET {cols} WHERE id = ?", list(values.values()) + [item_id]
+        )
+
+
+def delete_queue_item(item_id: int, path: Path = DEFAULT_DB_PATH) -> None:
+    with connect(path) as conn:
+        conn.execute("DELETE FROM scheduled_queue WHERE id = ?", (item_id,))

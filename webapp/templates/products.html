@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% block title %}상품 목록{% endblock %}
 {% block content %}
-<h1>상품 목록</h1>
+<h1>상품 목록 ({{ products | length }}개)</h1>
 <form method="post" action="{{ url_for('sync_products') }}">
-  <button type="submit">네이버에서 상품 불러오기</button>
+  <button type="submit">네이버에서 상품 더 불러오기 (최근 등록순, 50개씩)</button>
 </form>
+<a class="btn secondary" href="{{ url_for('published_products') }}">발행된 상품만 보기</a>
 
 {% if not products %}
   <p class="help">아직 상품이 없습니다. 위 버튼으로 네이버 상품을 불러오거나, "상품 추가"에서 직접 추가하세요.</p>
@@ -15,9 +16,11 @@
     {% if p.thumbnail_url %}<img src="{{ p.thumbnail_url }}" alt="">{% endif %}
     <div class="meta">
       <a href="{{ url_for('product_detail', product_id=p.id) }}"><strong>{{ p.name }}</strong></a>
+      {% if p.reg_date %}<span class="help">등록일 {{ p.reg_date[:10] }}</span>{% endif %}
       <span class="badge">{{ '후기리뷰' if p.mode == 'review' else '상품홍보' }}</span>
       {% if p.price %}<div>{{ "{:,}".format(p.price) }}원</div>{% endif %}
       <div class="help">{{ p.category or '' }}</div>
+      {% if p.smartstore_url %}<div class="help"><a href="{{ p.smartstore_url }}" target="_blank">{{ p.smartstore_url }}</a></div>{% endif %}
       <a class="btn secondary" href="{{ url_for('product_history', product_id=p.id) }}">발행 이력</a>
     </div>
   </div>

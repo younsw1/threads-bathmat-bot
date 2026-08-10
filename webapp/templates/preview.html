@@ -3,7 +3,8 @@
 {% block content %}
 <h1>발행 미리보기 — {{ product.name }}</h1>
 
-<p><span class="badge">{{ draft.hook_category }}</span> {{ draft.topic_summary }} ({{ draft.text|length }}자)</p>
+<p><span class="badge">{{ draft.hook_category }}</span> {{ draft.topic_summary }} ({{ draft.text|length }}자)
+  {% if draft.topic_tag %}· 주제 태그: <span class="badge">#{{ draft.topic_tag }}</span>{% endif %}</p>
 <div class="post-preview">{{ draft.text }}</div>
 
 {% if reply_text %}
@@ -12,26 +13,25 @@
 {% endif %}
 
 {% if product.image_urls %}
-<h2>첨부 이미지 선택</h2>
+<h2>첨부 이미지 선택 ({{ draft.selected_images | length }}장 선택됨)</h2>
+<p class="help">1장이면 단일 이미지, 2장 이상이면 캐러셀(최대 20장)로 발행됩니다. 0장이면 텍스트만 발행됩니다.</p>
 <form method="post" action="{{ url_for('select_image', product_id=product.id) }}">
   <div class="img-choices">
-    <label>
-      <input type="radio" name="image_url" value="" {% if not draft.selected_image %}checked{% endif %} onchange="this.form.submit()">
-      없음
-    </label>
     {% for img in product.image_urls %}
-      <img src="{{ img }}" class="{{ 'selected' if draft.selected_image == img else '' }}"
-           onclick="this.closest('form').image_url.value='{{ img }}'; this.closest('form').submit();">
+      <label style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+        <img src="{{ img }}" class="{{ 'selected' if img in draft.selected_images else '' }}">
+        <input type="checkbox" name="image_url" value="{{ img }}" {% if img in draft.selected_images %}checked{% endif %}>
+      </label>
     {% endfor %}
   </div>
-  <input type="hidden" name="image_url" value="{{ draft.selected_image or '' }}">
+  <button type="submit" class="secondary">선택 적용</button>
 </form>
 {% endif %}
 
 <form method="post" action="{{ url_for('publish', product_id=product.id) }}">
   <label>
-    <input type="checkbox" name="use_image" {% if draft.selected_image %}checked{% endif %}
-      {% if not draft.selected_image %}disabled{% endif %}> 선택한 이미지와 함께 발행
+    <input type="checkbox" name="use_image" {% if draft.selected_images %}checked{% endif %}
+      {% if not draft.selected_images %}disabled{% endif %}> 선택한 이미지와 함께 발행 ({{ draft.selected_images | length }}장)
   </label>
   <button type="submit">Threads에 발행</button>
 </form>

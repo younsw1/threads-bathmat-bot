@@ -7,7 +7,7 @@
 {% for p in posts %}
   <div class="card">
     <div class="meta">
-      <div class="help">{{ p.timestamp }} · <span class="badge">{{ p.hook_category }}</span> {{ p.topic_summary }}</div>
+      <div class="help">{{ p.timestamp }} · <span class="badge">{{ p.hook_category }}</span> {{ p.topic_summary }}{% if p.topic_tag %} · #{{ p.topic_tag }}{% endif %}</div>
       <div class="post-preview">{{ p.text }}</div>
       {% if p.reply_text %}<div class="help">↳ 답글: {{ p.reply_text }}</div>{% endif %}
     </div>
