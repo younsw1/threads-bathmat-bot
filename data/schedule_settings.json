@@ -1,6 +1,6 @@
 {
   "morning": true,
-  "lunch": true,
-  "afternoon": true,
-  "evening": true
+  "lunch": false,
+  "afternoon": false,
+  "evening": false
 }
