@@ -28,6 +28,22 @@ class ThreadsClient:
     access_token: str
     user_id: str
 
+    def __post_init__(self) -> None:
+        # 시크릿/토큰 값이 복사 과정 등에서 깨진 채 저장되면 "Unsupported post request"처럼
+        # 원인을 알기 어려운 Threads API 오류로만 나타나므로, 여기서 먼저 명확하게 걸러낸다.
+        self.access_token = (self.access_token or "").strip()
+        self.user_id = (self.user_id or "").strip()
+        if not self.user_id.isdigit():
+            raise ThreadsApiError(
+                f"THREADS_USER_ID가 숫자로만 이루어져 있지 않습니다 (길이={len(self.user_id)}). "
+                "값이 손상된 채 저장됐을 가능성이 높습니다. 다시 확인해주세요."
+            )
+        if len(self.access_token) < 50 or any(c.isspace() for c in self.access_token):
+            raise ThreadsApiError(
+                f"THREADS_ACCESS_TOKEN 형식이 올바르지 않습니다 (길이={len(self.access_token)}). "
+                "값이 손상된 채 저장됐을 가능성이 높습니다. 다시 확인해주세요."
+            )
+
     def get_publishing_limit(self) -> dict:
         resp = requests.get(
             f"{GRAPH_BASE}/{self.user_id}/threads_publishing_limit",
