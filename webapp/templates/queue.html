@@ -40,10 +40,19 @@
       <span class="badge">{{ item.hook_category }}</span>
       {% if item.topic_tag %}<span class="badge">#{{ item.topic_tag }}</span>{% endif %}
       {% if item.id in eta_by_id %}<div class="help">예상 발행: {{ eta_by_id[item.id] }} (시간대 안 무작위 시각이라 근사치)</div>{% endif %}
-      <div class="post-preview">{{ item.text }}</div>
+
+      {% if item.status == 'published' %}
+        <div class="post-preview">{{ item.text }}</div>
+      {% else %}
+        <form method="post" action="{{ url_for('queue_edit', item_id=item.id) }}">
+          <textarea name="text" style="min-height:140px;">{{ item.text }}</textarea>
+          <button type="submit" class="secondary">텍스트 저장</button>
+          <span class="help">수정하면 다시 검토가 필요해 '초안' 상태로 돌아갑니다.</span>
+        </form>
+      {% endif %}
       {% if item.reply_text %}<div class="help">↳ 답글: {{ item.reply_text }}</div>{% endif %}
       <div style="margin-top:8px;">
-        {% if item.status != 'ready' %}
+        {% if item.status != 'ready' and item.status != 'published' %}
         <form method="post" action="{{ url_for('queue_approve', item_id=item.id) }}" style="display:inline">
           <button type="submit">승인</button>
         </form>

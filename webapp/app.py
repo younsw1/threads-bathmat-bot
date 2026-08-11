@@ -314,11 +314,13 @@ def generate_draft(product_id: int):
     product = Product(raw=product_row)
     reviews = db.list_reviews(product_id) if product_row["mode"] == "review" else []
     recent_records = db.recent_posts(product_id)
+    style_examples = db.list_favorite_posts(limit=5)
     client = anthropic.Anthropic(api_key=settings["anthropic_api_key"])
 
     try:
         post = generate(persona=persona, product=product, reviews=reviews,
-                         recent_records=recent_records, client=client)
+                         recent_records=recent_records, client=client,
+                         style_examples=style_examples)
     except Exception as e:  # noqa: BLE001
         flash(f"글 생성 실패: {e}", "error")
         return redirect(url_for("product_detail", product_id=product_id))
@@ -416,6 +418,17 @@ def product_history(product_id: int):
     return render_template("history.html", product=product, posts=posts)
 
 
+@app.route("/posts/<int:post_id>/favorite", methods=["POST"])
+def toggle_post_favorite(post_id: int):
+    make_favorite = request.form.get("value") == "1"
+    db.set_post_favorite(post_id, make_favorite)
+    flash(
+        "글 스타일 예시로 즐겨찾기에 추가했습니다." if make_favorite else "즐겨찾기에서 뺐습니다.",
+        "success",
+    )
+    return redirect(request.referrer or url_for("products"))
+
+
 # --- 예약 발행 대기열 --------------------------------------------------
 
 def _run_git(*args: str) -> subprocess.CompletedProcess:
@@ -442,11 +455,13 @@ def queue_add(product_id: int):
     product = Product(raw=product_row)
     reviews = db.list_reviews(product_id) if product_row["mode"] == "review" else []
     recent_records = db.recent_posts(product_id)
+    style_examples = db.list_favorite_posts(limit=5)
     client = anthropic.Anthropic(api_key=settings["anthropic_api_key"])
 
     try:
         post = generate(persona=persona, product=product, reviews=reviews,
-                         recent_records=recent_records, client=client)
+                         recent_records=recent_records, client=client,
+                         style_examples=style_examples)
     except Exception as e:  # noqa: BLE001
         flash(f"글 생성 실패: {e}", "error")
         return redirect(url_for("product_detail", product_id=product_id))
@@ -503,6 +518,17 @@ def queue_settings():
     return redirect(url_for("queue_list"))
 
 
+@app.route("/queue/<int:item_id>/edit", methods=["POST"])
+def queue_edit(item_id: int):
+    text = request.form.get("text", "").strip()
+    if not text:
+        flash("본문이 비어 있어 저장하지 않았습니다.", "error")
+        return redirect(url_for("queue_list"))
+    db.update_queue_item(item_id, {"text": text, "status": "draft"})
+    flash("텍스트를 저장했습니다. 다시 검토 후 승인해주세요.", "success")
+    return redirect(url_for("queue_list"))
+
+
 @app.route("/queue/<int:item_id>/approve", methods=["POST"])
 def queue_approve(item_id: int):
     db.update_queue_item(item_id, {"status": "ready"})
@@ -523,11 +549,13 @@ def queue_regenerate(item_id: int):
     product = Product(raw=product_row)
     reviews = db.list_reviews(item["product_id"]) if product_row["mode"] == "review" else []
     recent_records = db.recent_posts(item["product_id"])
+    style_examples = db.list_favorite_posts(limit=5)
     client = anthropic.Anthropic(api_key=settings["anthropic_api_key"])
 
     try:
         post = generate(persona=persona, product=product, reviews=reviews,
-                         recent_records=recent_records, client=client)
+                         recent_records=recent_records, client=client,
+                         style_examples=style_examples)
     except Exception as e:  # noqa: BLE001
         flash(f"재생성 실패: {e}", "error")
         return redirect(url_for("queue_list"))

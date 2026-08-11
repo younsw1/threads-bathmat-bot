@@ -62,7 +62,8 @@ CREATE TABLE IF NOT EXISTS posts (
     post_id TEXT,
     reply_post_id TEXT,
     source_review_ids TEXT DEFAULT '[]',
-    topic_tag TEXT
+    topic_tag TEXT,
+    is_favorite INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS scheduled_queue (
@@ -126,6 +127,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
     post_cols = {row[1] for row in conn.execute("PRAGMA table_info(posts)")}
     if "topic_tag" not in post_cols:
         conn.execute("ALTER TABLE posts ADD COLUMN topic_tag TEXT")
+    if "is_favorite" not in post_cols:
+        conn.execute("ALTER TABLE posts ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0")
 
 
 # --- settings -----------------------------------------------------------
@@ -273,6 +276,22 @@ def recent_review_ids(product_id: int, n: int = 14, path: Path = DEFAULT_DB_PATH
     for p in recent_posts(product_id, n, path):
         ids.update(str(i) for i in p.get("source_review_ids") or [])
     return ids
+
+
+def set_post_favorite(post_id: int, is_favorite: bool, path: Path = DEFAULT_DB_PATH) -> None:
+    with connect(path) as conn:
+        conn.execute(
+            "UPDATE posts SET is_favorite = ? WHERE id = ?", (1 if is_favorite else 0, post_id)
+        )
+
+
+def list_favorite_posts(limit: int = 5, path: Path = DEFAULT_DB_PATH) -> list[dict[str, Any]]:
+    """상품에 상관없이, 즐겨찾기한 발행글을 최신순으로 반환한다 (문체 학습용 예시)."""
+    with connect(path) as conn:
+        rows = conn.execute(
+            "SELECT * FROM posts WHERE is_favorite = 1 ORDER BY timestamp DESC LIMIT ?", (limit,)
+        ).fetchall()
+        return [dict(r) for r in rows]
 
 
 # --- scheduled_queue -------------------------------------------------------

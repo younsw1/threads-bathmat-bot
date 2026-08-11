@@ -153,12 +153,24 @@ def _build_link_note(link_placement: str, smartstore_url: str) -> str:
     return "[링크 표기 방식] 본문에 URL을 쓰지 마세요. 발행 직후 자동으로 답글에 링크가 달립니다."
 
 
+def _build_style_examples_block(style_examples: list[dict[str, Any]] | None) -> str:
+    if not style_examples:
+        return ""
+    lines = [f'  ---\n  "{ex["text"]}"' for ex in style_examples]
+    return (
+        "\n\n[사용자가 직접 즐겨찾기로 지정한, 이 계정의 문체를 가장 잘 보여주는 과거 글 예시]\n"
+        "아래 글들의 말투/문장 리듬/톤을 최우선으로 참고해서 쓰세요. 내용을 베끼거나 같은 "
+        "주제를 반복하지는 말고, 어떻게 쓰는지(문체)만 배우세요:\n" + "\n".join(lines)
+    )
+
+
 def generate(
     persona: Persona,
     product: Product,
     reviews: list[dict[str, Any]],
     recent_records: list[dict],
     client: anthropic.Anthropic | None = None,
+    style_examples: list[dict[str, Any]] | None = None,
 ) -> GeneratedPost:
     mode = product.raw.get("mode", "review")
     link_placement = product.raw.get("link_placement", "reply")
@@ -169,6 +181,7 @@ def generate(
         + product.to_context_block()
         + "\n\n"
         + _build_link_note(link_placement, product.raw.get("smartstore_url", ""))
+        + _build_style_examples_block(style_examples)
     )
     history_note = _build_history_note(recent_records)
     reviews_block = _build_reviews_block(reviews, mode)
