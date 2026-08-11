@@ -49,11 +49,43 @@
     </label>
   </fieldset>
 
+  <fieldset>
+    <legend>4. 카카오톡 "나에게 보내기" 알림 (선택)</legend>
+    <div class="help">1) developers.kakao.com → 애플리케이션 추가 → REST API 키 확인
+2) 제품 설정 → 카카오 로그인 활성화, Redirect URI 등록 (아래 기본값을 그대로 등록해도 됩니다 — Threads 설정 때 만든 GitHub Pages 페이지를 재사용합니다)
+3) 제품 설정 → 카카오 로그인 → 동의항목에서 "카카오톡 메시지 전송(talk_message)"을 사용 설정
+4) Client Secret 발급 후 아래에 입력하고 저장 → "카카오 인증 시작하기" 클릭</div>
+    <label>REST API 키 (Client ID)
+      <input type="text" name="kakao_client_id" value="{{ settings.kakao_client_id or '' }}">
+    </label>
+    <label>Client Secret
+      <input type="password" name="kakao_client_secret" value="{{ settings.kakao_client_secret or '' }}">
+    </label>
+    <label>Redirect URI
+      <input type="text" name="kakao_redirect_uri"
+             placeholder="https://younsw1.github.io/threads-bathmat-bot/callback.html"
+             value="{{ settings.kakao_redirect_uri or '' }}">
+    </label>
+    <label><input type="checkbox" name="kakao_notify_enabled" {% if settings.kakao_notify_enabled %}checked{% endif %}> 발행될 때마다 카카오톡으로 알림 받기</label>
+  </fieldset>
+
   <button type="submit">저장</button>
 </form>
+
+<h2>카카오 인증</h2>
+<p class="help">위 3개 값(REST API 키/Secret/Redirect URI)을 먼저 저장한 뒤 진행하세요.</p>
+<a class="btn secondary" href="{{ url_for('kakao_authorize') }}">1) 카카오 인증 시작하기</a>
+<form method="post" action="{{ url_for('kakao_exchange') }}" style="margin-top:10px;">
+  <label>2) 인증 후 리다이렉트된 페이지에 뜬 코드(또는 전체 URL)를 붙여넣으세요
+    <input type="text" name="code" placeholder="코드 또는 https://.../callback.html?code=...">
+  </label>
+  <button type="submit">토큰 발급</button>
+</form>
+{% if settings.kakao_access_token %}<p class="help">✅ 토큰이 저장되어 있습니다.</p>{% endif %}
 
 <h2>연결 테스트</h2>
 <form method="post" action="{{ url_for('test_threads') }}" style="display:inline"><button class="secondary" type="submit">Threads 테스트</button></form>
 <form method="post" action="{{ url_for('test_claude') }}" style="display:inline"><button class="secondary" type="submit">Claude 테스트</button></form>
 <form method="post" action="{{ url_for('test_naver') }}" style="display:inline"><button class="secondary" type="submit">네이버 테스트</button></form>
+<form method="post" action="{{ url_for('test_kakao') }}" style="display:inline"><button class="secondary" type="submit">카카오 테스트</button></form>
 {% endblock %}

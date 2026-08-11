@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 import anthropic
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 
-from threads_bot import db, naver_client, schedule
+from threads_bot import db, kakao_client, naver_client, schedule
 from threads_bot.content_generator import generate, suggest_selling_points
 from threads_bot.persona import Persona
 from threads_bot.product import Product
@@ -60,6 +60,10 @@ def setup():
                 "naver_client_id": request.form.get("naver_client_id", "").strip(),
                 "naver_client_secret": request.form.get("naver_client_secret", "").strip(),
                 "naver_store_slug": request.form.get("naver_store_slug", "").strip(),
+                "kakao_client_id": request.form.get("kakao_client_id", "").strip(),
+                "kakao_client_secret": request.form.get("kakao_client_secret", "").strip(),
+                "kakao_redirect_uri": request.form.get("kakao_redirect_uri", "").strip(),
+                "kakao_notify_enabled": 1 if request.form.get("kakao_notify_enabled") == "on" else 0,
             }
         )
         flash("설정을 저장했습니다.", "success")
@@ -114,6 +118,99 @@ def test_naver():
         flash("네이버 커머스API 연결 성공", "success")
     except naver_client.NaverApiError as e:
         flash(f"네이버 커머스API 연결 실패: {e}", "error")
+    return redirect(url_for("setup"))
+
+
+@app.route("/setup/kakao/authorize")
+def kakao_authorize():
+    settings = db.get_settings()
+    if not settings.get("kakao_client_id") or not settings.get("kakao_redirect_uri"):
+        flash("먼저 카카오 REST API 키와 Redirect URI를 입력하고 저장해주세요.", "error")
+        return redirect(url_for("setup"))
+    url = kakao_client.build_authorize_url(
+        settings["kakao_client_id"], settings["kakao_redirect_uri"]
+    )
+    return redirect(url)
+
+
+@app.route("/setup/kakao/exchange", methods=["POST"])
+def kakao_exchange():
+    pasted = request.form.get("code", "").strip()
+    if not pasted:
+        flash("코드를 입력해주세요.", "error")
+        return redirect(url_for("setup"))
+    if pasted.startswith("http"):
+        from urllib.parse import parse_qs, urlparse
+
+        query = parse_qs(urlparse(pasted).query)
+        pasted = query.get("code", [""])[0]
+    if not pasted:
+        flash("붙여넣은 값에서 code를 찾지 못했습니다.", "error")
+        return redirect(url_for("setup"))
+
+    settings = db.get_settings()
+    try:
+        data = kakao_client.exchange_code_for_token(
+            client_id=settings["kakao_client_id"],
+            client_secret=settings.get("kakao_client_secret") or "",
+            redirect_uri=settings["kakao_redirect_uri"],
+            code=pasted,
+        )
+    except kakao_client.KakaoApiError as e:
+        flash(f"카카오 토큰 발급 실패: {e}", "error")
+        return redirect(url_for("setup"))
+
+    db.update_settings(
+        {
+            "kakao_access_token": data["access_token"],
+            "kakao_refresh_token": data["refresh_token"],
+        }
+    )
+    flash("카카오 인증 완료! 아래 '카카오 테스트'로 확인해보세요.", "success")
+    return redirect(url_for("setup"))
+
+
+def _kakao_refresh(settings: dict) -> str:
+    """리프레시 토큰으로 최신 액세스 토큰을 받아오고 DB에 저장한 뒤 반환한다."""
+    data = kakao_client.refresh_access_token(
+        client_id=settings["kakao_client_id"],
+        client_secret=settings.get("kakao_client_secret") or "",
+        refresh_token=settings["kakao_refresh_token"],
+    )
+    updates = {"kakao_access_token": data["access_token"]}
+    if data.get("refresh_token"):  # 카카오가 새 리프레시 토큰을 줄 때만 갱신
+        updates["kakao_refresh_token"] = data["refresh_token"]
+    db.update_settings(updates)
+    return data["access_token"]
+
+
+def notify_kakao(text: str, web_url: str | None = None) -> None:
+    """설정에서 알림이 켜져 있으면 카카오톡 '나에게 보내기'로 발송한다. 실패해도 조용히 무시한다
+    (알림 실패가 발행 자체를 막으면 안 되므로)."""
+    settings = db.get_settings()
+    if not settings.get("kakao_notify_enabled") or not settings.get("kakao_refresh_token"):
+        return
+    try:
+        access_token = _kakao_refresh(settings)
+        kakao_client.KakaoClient(access_token=access_token).send_text_to_me(text, web_url=web_url)
+    except kakao_client.KakaoApiError as e:
+        print(f"[kakao] 알림 발송 실패(무시하고 계속 진행): {e}")
+
+
+@app.route("/setup/kakao/test", methods=["POST"])
+def test_kakao():
+    settings = db.get_settings()
+    if not settings.get("kakao_refresh_token"):
+        flash("먼저 카카오 인증을 완료해주세요.", "error")
+        return redirect(url_for("setup"))
+    try:
+        access_token = _kakao_refresh(settings)
+        kakao_client.KakaoClient(access_token=access_token).send_text_to_me(
+            "Threads 대시보드 카카오 알림 테스트입니다. 이 메시지가 보이면 연동 성공!"
+        )
+        flash("카카오톡으로 테스트 메시지를 보냈습니다. 확인해보세요.", "success")
+    except kakao_client.KakaoApiError as e:
+        flash(f"카카오 테스트 실패: {e}", "error")
     return redirect(url_for("setup"))
 
 
@@ -386,6 +483,7 @@ def publish(product_id: int):
             reply_text = f"🔗 상품 보러가기\n{product['smartstore_url']}"
             reply_post_id = client.publish_text(reply_text, reply_to_id=post_id)
     except ThreadsApiError as e:
+        notify_kakao(f"⚠️ Threads 발행 실패\n상품: {product['name']}\n오류: {e}")
         flash(f"발행 실패: {e}", "error")
         return redirect(url_for("preview", product_id=product_id))
 
@@ -402,6 +500,10 @@ def publish(product_id: int):
             "source_review_ids": draft["source_review_ids"],
             "topic_tag": draft.get("topic_tag"),
         }
+    )
+    notify_kakao(
+        f"✅ Threads 발행 완료\n상품: {product['name']}\n{draft['text'][:80]}",
+        web_url=product.get("smartstore_url"),
     )
     session.pop(f"draft_{product_id}", None)
     flash("Threads에 발행했습니다.", "success")

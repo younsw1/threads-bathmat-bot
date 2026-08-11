@@ -20,7 +20,13 @@ CREATE TABLE IF NOT EXISTS settings (
     naver_client_id TEXT,
     naver_client_secret TEXT,
     naver_store_slug TEXT,
-    naver_sync_page INTEGER DEFAULT 0
+    naver_sync_page INTEGER DEFAULT 0,
+    kakao_client_id TEXT,
+    kakao_client_secret TEXT,
+    kakao_redirect_uri TEXT,
+    kakao_access_token TEXT,
+    kakao_refresh_token TEXT,
+    kakao_notify_enabled INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS products (
@@ -117,6 +123,18 @@ def _migrate(conn: sqlite3.Connection) -> None:
             "ALTER TABLE settings ADD COLUMN schedule_windows TEXT DEFAULT "
             "'{\"morning\":false,\"lunch\":false,\"evening\":true}'"
         )
+    if "kakao_client_id" not in existing:
+        conn.execute("ALTER TABLE settings ADD COLUMN kakao_client_id TEXT")
+    if "kakao_client_secret" not in existing:
+        conn.execute("ALTER TABLE settings ADD COLUMN kakao_client_secret TEXT")
+    if "kakao_redirect_uri" not in existing:
+        conn.execute("ALTER TABLE settings ADD COLUMN kakao_redirect_uri TEXT")
+    if "kakao_access_token" not in existing:
+        conn.execute("ALTER TABLE settings ADD COLUMN kakao_access_token TEXT")
+    if "kakao_refresh_token" not in existing:
+        conn.execute("ALTER TABLE settings ADD COLUMN kakao_refresh_token TEXT")
+    if "kakao_notify_enabled" not in existing:
+        conn.execute("ALTER TABLE settings ADD COLUMN kakao_notify_enabled INTEGER NOT NULL DEFAULT 0")
 
     product_cols = {row[1] for row in conn.execute("PRAGMA table_info(products)")}
     if "origin_product_no" not in product_cols:

@@ -17,8 +17,24 @@ from pathlib import Path
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from threads_bot import schedule  # noqa: E402
+from threads_bot import kakao_client, schedule  # noqa: E402
 from threads_bot.threads_client import ThreadsApiError, ThreadsClient  # noqa: E402
+
+
+def _notify_kakao(text: str) -> None:
+    """KAKAO_* 시크릿이 설정돼 있으면 카카오톡 '나에게 보내기'로 알린다.
+    설정 안 돼 있거나 실패해도 조용히 넘어간다 (알림 때문에 발행 자체가 실패로 처리되면 안 됨)."""
+    client_id = os.environ.get("KAKAO_CLIENT_ID")
+    client_secret = os.environ.get("KAKAO_CLIENT_SECRET", "")
+    refresh_token = os.environ.get("KAKAO_REFRESH_TOKEN")
+    if not client_id or not refresh_token:
+        return
+    try:
+        data = kakao_client.refresh_access_token(client_id, client_secret, refresh_token)
+        kakao_client.KakaoClient(access_token=data["access_token"]).send_text_to_me(text)
+        print("[kakao] 알림 발송 완료")
+    except kakao_client.KakaoApiError as e:
+        print(f"[kakao] 알림 발송 실패(무시): {e}")
 
 
 def main() -> int:
@@ -68,9 +84,11 @@ def main() -> int:
             reply_post_id = client.publish_text(item["reply_text"], reply_to_id=post_id)
     except ThreadsApiError as e:
         print(f"[error] 발행 실패: {e}")
+        _notify_kakao(f"⚠️ 예약 발행 실패\nqueue_item_id={item['id']}\n오류: {e}")
         return 1
 
     print(f"[published] post_id={post_id} reply_post_id={reply_post_id}")
+    _notify_kakao(f"✅ 예약 발행 완료 ('{window}' 시간대)\n{item['text'][:80]}")
 
     schedule.save_queue(queue[1:])
     schedule.append_history(

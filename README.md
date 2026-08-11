@@ -42,7 +42,7 @@ python webapp/app.py
 ```
 
 브라우저가 자동으로 `http://127.0.0.1:8765`로 열립니다. 처음 실행하면 **설정** 화면으로
-이동하는데, 여기서 아래 3가지를 순서대로 연동합니다 (각 섹션에 화면 내 안내가 있습니다).
+이동하는데, 여기서 아래를 순서대로 연동합니다 (각 섹션에 화면 내 안내가 있습니다).
 
 1. **Threads(Meta)**: developers.facebook.com에서 본인 앱을 만들고 "Access the Threads API"
    추가 → 테스터로 본인 계정 등록 → "사용자 토큰 생성기"로 토큰 발급 → 대시보드에 붙여넣기
@@ -51,6 +51,14 @@ python webapp/app.py
 2. **Claude API**: console.anthropic.com에서 키 발급
 3. **네이버 커머스API** (상품홍보 모드용, 선택): apicenter.commerce.naver.com에서 본인 명의로
    "내 스토어 어플리케이션" 발급
+4. **카카오톡 알림** (선택): 발행될 때마다(성공/실패) 카카오톡 "나에게 보내기"로 알림을 받습니다.
+   developers.kakao.com에서 앱 생성 → REST API 키 확인 → 카카오 로그인 활성화 + Redirect URI
+   등록(Threads 설정 때 만든 GitHub Pages `callback.html`을 그대로 재사용 가능) → 동의항목에서
+   "카카오톡 메시지 전송(talk_message)" 활성화 → Client Secret 발급 → 대시보드에 입력하고 저장 →
+   "카카오 인증 시작하기" → 동의 후 리다이렉트된 페이지의 코드를 대시보드에 붙여넣기 → 토큰 발급.
+   액세스 토큰이 6시간마다 만료되는데, 발송 직전에 리프레시 토큰으로 항상 자동 갱신하므로 별도
+   관리는 필요 없습니다 (단, 리프레시 토큰 자체는 2개월 후 만료되며 자동 회전은 안 하므로,
+   2개월에 한 번씩은 재인증이 필요할 수 있습니다).
 
 각 섹션 아래 "연결 테스트" 버튼으로 바로 성공/실패를 확인할 수 있습니다. 이후 **상품 목록**
 화면에서 네이버 상품을 불러오거나 수동으로 추가하고, 상품 상세에서 모드(후기리뷰/상품홍보)와
@@ -81,6 +89,12 @@ python webapp/app.py
 **필요한 GitHub Secrets**: `THREADS_ACCESS_TOKEN`, `THREADS_USER_ID` (기존 CLI 자동화를
 설정했다면 이미 등록되어 있을 수 있습니다 — 저장소 Settings → Secrets and variables →
 Actions에서 확인하세요). `refresh_token.yml`이 있다면 토큰도 자동으로 계속 갱신됩니다.
+
+**카카오 알림까지 GitHub Actions에서 받으려면** `KAKAO_CLIENT_ID`, `KAKAO_CLIENT_SECRET`,
+`KAKAO_REFRESH_TOKEN` 시크릿도 등록하세요 (값은 로컬 설정 화면에서 카카오 인증 완료 후
+`data/app.db`에 저장된 값과 동일합니다). 등록 안 해도 예약 발행 자체는 정상 동작하고,
+카카오 알림만 조용히 건너뜁니다. 테스트하고 싶다면 workflow_dispatch의 **force** 옵션으로
+즉시 발행해보면 카카오 알림도 같이 옵니다.
 
 ---
 
