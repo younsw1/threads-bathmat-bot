@@ -61,10 +61,11 @@
         <form method="post" action="{{ url_for('queue_regenerate', item_id=item.id) }}" style="display:inline">
           <button type="submit" class="secondary">다시 생성</button>
         </form>
-        <form method="post" action="{{ url_for('queue_delete', item_id=item.id) }}" style="display:inline">
+        {% endif %}
+        <form method="post" action="{{ url_for('queue_delete', item_id=item.id) }}" style="display:inline"
+              onsubmit="return confirm('{{ '발행 이력은 그대로 남고, 대기열 목록에서만 지워집니다. 계속할까요?' if item.status == 'published' else '삭제할까요?' }}');">
           <button type="submit" class="danger">삭제</button>
         </form>
-        {% endif %}
       </div>
     </div>
   </div>
