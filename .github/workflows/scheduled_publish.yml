@@ -7,7 +7,12 @@ on:
     - cron: "0 3 * * *"
     - cron: "0 6 * * *"
     - cron: "0 10 * * *"
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "true면 시간대/랜덤 대기 없이 지금 즉시 발행 (테스트용)"
+        required: false
+        default: "false"
 
 permissions:
   contents: write
@@ -30,6 +35,7 @@ jobs:
         env:
           THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
           THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
+          FORCE_PUBLISH: ${{ github.event.inputs.force }}
         run: python scripts/scheduled_publish.py
 
       - name: 대기열/이력 커밋

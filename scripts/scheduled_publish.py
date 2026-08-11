@@ -22,15 +22,20 @@ from threads_bot.threads_client import ThreadsApiError, ThreadsClient  # noqa: E
 
 
 def main() -> int:
-    window = schedule.current_window()
-    if window is None:
-        print("[skip] 지금은 설정된 시간대(아침/점심/저녁) 밖입니다.")
-        return 0
+    force = os.environ.get("FORCE_PUBLISH", "").strip().lower() == "true"
 
-    settings = schedule.load_schedule_settings()
-    if not settings.get(window):
-        print(f"[skip] '{window}' 시간대는 비활성화되어 있습니다.")
-        return 0
+    window = schedule.current_window()
+    if not force:
+        if window is None:
+            print("[skip] 지금은 설정된 시간대(아침/점심/저녁) 밖입니다.")
+            return 0
+        settings = schedule.load_schedule_settings()
+        if not settings.get(window):
+            print(f"[skip] '{window}' 시간대는 비활성화되어 있습니다.")
+            return 0
+    else:
+        print("[force] 시간대/대기 없이 즉시 발행 모드입니다 (테스트용).")
+        window = window or "force"
 
     queue = schedule.load_queue()
     if not queue:
@@ -40,10 +45,13 @@ def main() -> int:
     item = queue[0]
     print(f"[selected] queue_item_id={item['id']} product_id={item['product_id']}")
 
-    remaining = schedule.seconds_remaining_in_window(window)
-    delay = random.uniform(0, remaining)
-    print(f"[wait] '{window}' 시간대 안에서 {delay:.0f}초 대기 후 발행합니다.")
-    time.sleep(delay)
+    if force:
+        print("[wait] force 모드라 대기 없이 바로 발행합니다.")
+    else:
+        remaining = schedule.seconds_remaining_in_window(window)
+        delay = random.uniform(0, remaining)
+        print(f"[wait] '{window}' 시간대 안에서 {delay:.0f}초 대기 후 발행합니다.")
+        time.sleep(delay)
 
     client = ThreadsClient(
         access_token=os.environ["THREADS_ACCESS_TOKEN"],
