@@ -596,6 +596,22 @@ def preview(product_id: int):
     return render_template("preview.html", product=product, draft=draft, reply_text=reply_text)
 
 
+@app.route("/products/<int:product_id>/preview/edit-text", methods=["POST"])
+def edit_draft_text(product_id: int):
+    draft = session.get(f"draft_{product_id}")
+    if not draft:
+        flash("먼저 글을 생성해주세요.", "error")
+        return redirect(url_for("product_detail", product_id=product_id))
+    text = request.form.get("text", "").strip()
+    if not text:
+        flash("본문이 비어 있어 저장하지 않았습니다.", "error")
+        return redirect(url_for("preview", product_id=product_id))
+    draft["text"] = text
+    session[f"draft_{product_id}"] = draft
+    flash("본문을 수정했습니다.", "success")
+    return redirect(url_for("preview", product_id=product_id))
+
+
 @app.route("/products/<int:product_id>/preview/select-image", methods=["POST"])
 def select_image(product_id: int):
     draft = session.get(f"draft_{product_id}")

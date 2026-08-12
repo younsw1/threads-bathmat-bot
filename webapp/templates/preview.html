@@ -3,9 +3,14 @@
 {% block content %}
 <h1>발행 미리보기 — {{ product.name }}</h1>
 
-<p><span class="badge">{{ draft.hook_category }}</span> {{ draft.topic_summary }} ({{ draft.text|length }}자)
+<p><span class="badge">{{ draft.hook_category }}</span> {{ draft.topic_summary }}
   {% if draft.topic_tag %}· 주제 태그: <span class="badge">#{{ draft.topic_tag }}</span>{% endif %}</p>
-<div class="post-preview">{{ draft.text }}</div>
+
+<form method="post" action="{{ url_for('edit_draft_text', product_id=product.id) }}">
+  <textarea name="text" rows="10" style="width:100%; font-family:inherit;">{{ draft.text }}</textarea>
+  <div class="help">Threads 500자 제한 (현재 {{ draft.text|length }}자)</div>
+  <button type="submit" class="secondary">본문 저장</button>
+</form>
 
 {% if reply_text %}
   <h2>자동 답글</h2>
