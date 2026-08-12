@@ -2,26 +2,45 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}Threads 자동 발행{% endblock %}</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-<nav>
-  <a href="{{ url_for('products') }}">상품 목록</a>
-  <a href="{{ url_for('published_products') }}">발행된 상품</a>
-  <a href="{{ url_for('queue_list') }}">예약 대기열</a>
-  <a href="{{ url_for('new_product') }}">상품 추가</a>
-  <a href="{{ url_for('setup') }}">설정</a>
-</nav>
-<main>
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      {% for category, message in messages %}
-        <div class="flash flash-{{ category }}">{{ message }}</div>
-      {% endfor %}
-    {% endif %}
-  {% endwith %}
-  {% block content %}{% endblock %}
-</main>
+<div class="shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-mark">◆</span>
+      <div class="brand-text">
+        <strong>THREADS OPS</strong>
+        <span>자동 발행 콘솔</span>
+      </div>
+    </div>
+    <nav>
+      <a href="{{ url_for('products') }}" class="{{ 'active' if request.path == url_for('products') }}">상품 목록</a>
+      <a href="{{ url_for('published_products') }}" class="{{ 'active' if request.path == url_for('published_products') }}">발행된 상품</a>
+      <a href="{{ url_for('queue_list') }}" class="{{ 'active' if request.path == url_for('queue_list') }}">예약 대기열</a>
+      <a href="{{ url_for('new_product') }}" class="{{ 'active' if request.path == url_for('new_product') }}">상품 추가</a>
+      <a href="{{ url_for('setup') }}" class="{{ 'active' if request.path == url_for('setup') }}">설정</a>
+    </nav>
+    <div class="sidebar-footer">
+      <span class="status-dot"></span> 로컬 실행 중
+    </div>
+  </aside>
+  <main>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-stack">
+        {% for category, message in messages %}
+          <div class="flash flash-{{ category }}">{{ message }}</div>
+        {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
 </body>
 </html>

@@ -35,8 +35,11 @@
   <div class="card">
     {% if item.image_url %}<img src="{{ item.image_url }}">{% endif %}
     <div class="meta">
-      <strong>{{ item.product_name }}</strong>
-      <span class="badge">{{ item.status }}</span>
+      <div class="log-line">
+        <span class="log-dot log-dot-{{ 'ok' if item.status == 'published' else 'pending' if item.status == 'ready' else 'idle' }}"></span>
+        <span class="log-tag log-tag-{{ 'ok' if item.status == 'published' else 'pending' if item.status == 'ready' else 'idle' }}">{{ item.status | upper }}</span>
+        <span class="log-msg">{{ item.product_name }}</span>
+      </div>
       <span class="badge">{{ item.hook_category }}</span>
       {% if item.topic_tag %}<span class="badge">#{{ item.topic_tag }}</span>{% endif %}
       {% if item.id in eta_by_id %}<div class="help">예상 발행: {{ eta_by_id[item.id] }} (시간대 안 무작위 시각이라 근사치)</div>{% endif %}

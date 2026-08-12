@@ -8,7 +8,13 @@
 {% for p in posts %}
   <div class="card">
     <div class="meta">
-      <div class="help">{{ p.timestamp }} · <span class="badge">{{ p.hook_category }}</span> {{ p.topic_summary }}{% if p.topic_tag %} · #{{ p.topic_tag }}{% endif %}</div>
+      <div class="log-line">
+        <span class="log-dot log-dot-ok"></span>
+        <span class="log-time">{{ p.timestamp }}</span>
+        <span class="log-tag">PUBLISHED</span>
+        <span class="badge">{{ p.hook_category }}</span>
+        <span class="log-msg">{{ p.topic_summary }}{% if p.topic_tag %} · #{{ p.topic_tag }}{% endif %}</span>
+      </div>
       <div class="post-preview">{{ p.text }}</div>
       {% if p.reply_text %}<div class="help">↳ 답글: {{ p.reply_text }}</div>{% endif %}
       <form method="post" action="{{ url_for('toggle_post_favorite', post_id=p.id) }}" style="margin-top:6px;">
