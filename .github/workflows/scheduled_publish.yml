@@ -48,7 +48,8 @@ jobs:
         run: |
           git config user.name "threads-bot"
           git config user.email "actions@github.com"
-          git pull --rebase
           git add data/queue.json data/queue_history.json
-          git diff --cached --quiet || git commit -m "chore: scheduled publish result"
+          git diff --cached --quiet && exit 0
+          git commit -m "chore: scheduled publish result"
+          git pull --rebase
           git push
