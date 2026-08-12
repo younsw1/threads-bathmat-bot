@@ -23,6 +23,7 @@
       <div class="help">{{ p.category or '' }}</div>
       {% if p.smartstore_url %}<div class="help"><a href="{{ p.smartstore_url }}" target="_blank">{{ p.smartstore_url }}</a></div>{% endif %}
       <a class="btn secondary" href="{{ url_for('product_history', product_id=p.id) }}">발행 이력</a>
+      {% if p.id in pending_product_ids %}<span class="badge">발행대기</span>{% endif %}
     </div>
   </div>
 {% endfor %}

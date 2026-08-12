@@ -361,6 +361,15 @@ def add_queue_item(data: dict[str, Any], path: Path = DEFAULT_DB_PATH) -> int:
         return cur.lastrowid
 
 
+def list_pending_queue_product_ids(path: Path = DEFAULT_DB_PATH) -> set[int]:
+    """아직 발행되지 않은(draft/ready) 대기열 항목이 있는 상품 id 집합을 반환한다."""
+    with connect(path) as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT product_id FROM scheduled_queue WHERE status IN ('draft', 'ready')"
+        ).fetchall()
+        return {row[0] for row in rows}
+
+
 def list_queue_items(path: Path = DEFAULT_DB_PATH) -> list[dict[str, Any]]:
     with connect(path) as conn:
         rows = conn.execute(

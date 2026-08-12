@@ -222,7 +222,11 @@ def test_kakao():
 
 @app.route("/products")
 def products():
-    return render_template("products.html", products=db.list_unpublished_products())
+    return render_template(
+        "products.html",
+        products=db.list_unpublished_products(),
+        pending_product_ids=db.list_pending_queue_product_ids(),
+    )
 
 
 @app.route("/products/published")
@@ -459,7 +463,7 @@ def ai_images_use(product_id: int, image_id: int):
         "올려야 합니다 — 다음에 필요하시면 안내해드릴게요.",
         "success",
     )
-    return redirect(url_for("ai_images", product_id=product_id))
+    return redirect(url_for("products"))
 
 
 @app.route("/products/<int:product_id>/fetch-images", methods=["POST"])
@@ -639,6 +643,24 @@ def publish(product_id: int):
     )
     image_urls = draft.get("selected_images") or [] if request.form.get("use_image") == "on" else []
 
+    has_local_images = any(u.startswith("/static/generated/") for u in image_urls)
+    if has_local_images:
+        image_urls = [
+            _publicize_image_url(f"direct-{product_id}-{i}", u) for i, u in enumerate(image_urls)
+        ]
+        add = _run_git("add", "data/queue_images")
+        if add.returncode != 0:
+            flash(f"AI 이미지 공개 업로드 실패(git add): {add.stderr}", "error")
+            return redirect(url_for("preview", product_id=product_id))
+        commit = _run_git("commit", "-m", f"Publicize AI image for direct publish (product {product_id})")
+        if commit.returncode != 0 and "nothing to commit" not in (commit.stdout + commit.stderr):
+            flash(f"AI 이미지 공개 업로드 실패(git commit): {commit.stderr}", "error")
+            return redirect(url_for("preview", product_id=product_id))
+        push = _run_git("push")
+        if push.returncode != 0:
+            flash(f"AI 이미지 공개 업로드 실패(git push): {push.stderr}", "error")
+            return redirect(url_for("preview", product_id=product_id))
+
     try:
         post_id = client.publish_post(
             draft["text"], image_urls=image_urls, topic_tag=draft.get("topic_tag") or None
@@ -671,6 +693,21 @@ def publish(product_id: int):
         f"✅ Threads 발행 완료\n상품: {product['name']}\n{draft['text'][:80]}",
         web_url=product.get("smartstore_url"),
     )
+
+    if has_local_images:
+        for i in range(len(image_urls)):
+            for ext in (".png", ".jpg", ".jpeg", ".webp"):
+                temp_image = schedule.QUEUE_IMAGES_DIR / f"direct-{product_id}-{i}{ext}"
+                if temp_image.exists():
+                    temp_image.unlink()
+        cleanup_add = _run_git("add", "data/queue_images")
+        if cleanup_add.returncode == 0:
+            cleanup_commit = _run_git(
+                "commit", "-m", f"Clean up direct-publish temp image (product {product_id})"
+            )
+            if cleanup_commit.returncode == 0:
+                _run_git("push")
+
     session.pop(f"draft_{product_id}", None)
     flash("Threads에 발행했습니다.", "success")
     return redirect(url_for("product_history", product_id=product_id))
