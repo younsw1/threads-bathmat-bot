@@ -84,4 +84,5 @@
   <button type="submit" class="secondary">예약 대기열에 추가</button>
 </form>
 <a class="btn secondary" href="{{ url_for('product_history', product_id=product.id) }}">발행 이력 보기</a>
+<a class="btn secondary" href="{{ url_for('ai_images', product_id=product.id) }}">AI 이미지</a>
 {% endblock %}

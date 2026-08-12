@@ -12,6 +12,7 @@ import os
 import subprocess
 import sys
 import threading
+import uuid
 import webbrowser
 from datetime import datetime, timezone
 from pathlib import Path
@@ -21,13 +22,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 import anthropic
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 
-from threads_bot import db, kakao_client, naver_client, schedule
+from threads_bot import db, kakao_client, naver_client, openai_client, schedule
 from threads_bot.content_generator import generate, suggest_selling_points
 from threads_bot.persona import Persona
 from threads_bot.product import Product
 from threads_bot.threads_client import ThreadsApiError, ThreadsClient
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+GENERATED_IMAGES_DIR = REPO_ROOT / "webapp" / "static" / "generated"
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("WEBAPP_SECRET_KEY", "local-dev-only-not-secret")
@@ -64,6 +66,7 @@ def setup():
                 "kakao_client_secret": request.form.get("kakao_client_secret", "").strip(),
                 "kakao_redirect_uri": request.form.get("kakao_redirect_uri", "").strip(),
                 "kakao_notify_enabled": 1 if request.form.get("kakao_notify_enabled") == "on" else 0,
+                "openai_api_key": request.form.get("openai_api_key", "").strip(),
             }
         )
         flash("설정을 저장했습니다.", "success")
@@ -312,6 +315,130 @@ def product_detail(product_id: int):
         return redirect(url_for("products"))
     reviews = db.list_reviews(product_id)
     return render_template("product_detail.html", product=product, reviews=reviews)
+
+
+# --- AI 이미지 생성/수정 --------------------------------------------------
+
+def _build_lifestyle_prompt(product_row: dict) -> str:
+    name = product_row.get("name") or "상품"
+    category = product_row.get("category") or ""
+    points = ", ".join(product_row.get("key_selling_points") or [])
+    return (
+        f"사실적인 사진(포토리얼리스틱), 자연광, 실제 사람이 '{name}'을(를) 실사용하는 라이프스타일 스냅샷. "
+        f"카테고리: {category}. "
+        + (f"강조할 특징: {points}. " if points else "")
+        + "광고 카탈로그 이미지가 아니라 SNS에 올릴 법한 자연스러운 순간처럼 촬영하고, "
+        "상품이 화면에 또렷하게 보이도록 구도를 잡는다. 텍스트나 워터마크, 로고는 넣지 않는다."
+    )
+
+
+def _save_generated_images(product_id: int, image_bytes_list: list[bytes], prompt: str,
+                            parent_id: int | None = None) -> int:
+    out_dir = GENERATED_IMAGES_DIR / str(product_id)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    for img_bytes in image_bytes_list:
+        filename = f"{uuid.uuid4().hex}.png"
+        (out_dir / filename).write_bytes(img_bytes)
+        db.add_generated_image(product_id, f"{product_id}/{filename}", prompt=prompt, parent_id=parent_id)
+    return len(image_bytes_list)
+
+
+@app.route("/products/<int:product_id>/ai-images")
+def ai_images(product_id: int):
+    product = db.get_product(product_id)
+    if not product:
+        flash("상품을 찾을 수 없습니다.", "error")
+        return redirect(url_for("products"))
+    images = db.list_generated_images(product_id)
+    return render_template("ai_images.html", product=product, images=images)
+
+
+@app.route("/products/<int:product_id>/ai-images/generate", methods=["POST"])
+def ai_images_generate(product_id: int):
+    settings = db.get_settings()
+    if not settings.get("openai_api_key"):
+        flash("먼저 설정 화면에서 OpenAI API 키를 입력해주세요.", "error")
+        return redirect(url_for("setup"))
+    product = db.get_product(product_id)
+    if not product:
+        flash("상품을 찾을 수 없습니다.", "error")
+        return redirect(url_for("products"))
+
+    prompt = _build_lifestyle_prompt(product)
+    client = openai_client.OpenAIImageClient(api_key=settings["openai_api_key"])
+    try:
+        images = client.generate(prompt, n=2)
+    except openai_client.OpenAIApiError as e:
+        flash(f"이미지 생성 실패: {e}", "error")
+        return redirect(url_for("ai_images", product_id=product_id))
+
+    count = _save_generated_images(product_id, images, prompt)
+    flash(f"AI 이미지 {count}장을 생성했습니다.", "success")
+    return redirect(url_for("ai_images", product_id=product_id))
+
+
+@app.route("/products/<int:product_id>/ai-images/<int:image_id>/edit", methods=["POST"])
+def ai_images_edit(product_id: int, image_id: int):
+    direction = request.form.get("direction", "").strip()
+    if not direction:
+        flash("어떻게 수정할지 방향을 입력해주세요.", "error")
+        return redirect(url_for("ai_images", product_id=product_id))
+
+    settings = db.get_settings()
+    image = db.get_generated_image(image_id)
+    if not image or image["product_id"] != product_id:
+        flash("이미지를 찾을 수 없습니다.", "error")
+        return redirect(url_for("ai_images", product_id=product_id))
+
+    src_path = GENERATED_IMAGES_DIR / image["file_path"]
+    if not src_path.exists():
+        flash("원본 이미지 파일을 찾을 수 없습니다.", "error")
+        return redirect(url_for("ai_images", product_id=product_id))
+
+    client = openai_client.OpenAIImageClient(api_key=settings["openai_api_key"])
+    try:
+        results = client.edit(direction, src_path.read_bytes())
+    except openai_client.OpenAIApiError as e:
+        flash(f"이미지 수정 실패: {e}", "error")
+        return redirect(url_for("ai_images", product_id=product_id))
+
+    _save_generated_images(product_id, results, direction, parent_id=image_id)
+    flash("수정된 이미지를 새로 추가했습니다 (원본은 그대로 남아있습니다).", "success")
+    return redirect(url_for("ai_images", product_id=product_id))
+
+
+@app.route("/products/<int:product_id>/ai-images/<int:image_id>/delete", methods=["POST"])
+def ai_images_delete(product_id: int, image_id: int):
+    image = db.get_generated_image(image_id)
+    if image and image["product_id"] == product_id:
+        file_path = GENERATED_IMAGES_DIR / image["file_path"]
+        if file_path.exists():
+            file_path.unlink()
+        db.delete_generated_image(image_id)
+        flash("이미지를 삭제했습니다.", "success")
+    return redirect(url_for("ai_images", product_id=product_id))
+
+
+@app.route("/products/<int:product_id>/ai-images/<int:image_id>/use", methods=["POST"])
+def ai_images_use(product_id: int, image_id: int):
+    image = db.get_generated_image(image_id)
+    product = db.get_product(product_id)
+    if not image or not product or image["product_id"] != product_id:
+        flash("이미지를 찾을 수 없습니다.", "error")
+        return redirect(url_for("ai_images", product_id=product_id))
+
+    local_url = url_for("static", filename=f"generated/{image['file_path']}")
+    image_urls = list(product.get("image_urls") or [])
+    if local_url not in image_urls:
+        image_urls.insert(0, local_url)
+    db.update_product(product_id, {"image_urls": image_urls, "thumbnail_url": local_url})
+    flash(
+        "상품 이미지로 지정했습니다. ⚠️ 지금은 이 컴퓨터에만 있는 로컬 주소라, "
+        "실제 Threads 발행(특히 GitHub Actions 예약 발행)에 쓰려면 별도로 공개 호스팅에 "
+        "올려야 합니다 — 다음에 필요하시면 안내해드릴게요.",
+        "success",
+    )
+    return redirect(url_for("ai_images", product_id=product_id))
 
 
 @app.route("/products/<int:product_id>/fetch-images", methods=["POST"])
