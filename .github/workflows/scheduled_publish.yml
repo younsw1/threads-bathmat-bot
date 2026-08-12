@@ -2,17 +2,20 @@ name: Threads 예약 발행 (랜덤 시간대)
 
 on:
   schedule:
-    # KST 07:00(아침) / 12:00(점심) / 15:00(오후) / 19:00(저녁) 시작 -> UTC 기준
-    - cron: "0 22 * * *"
-    - cron: "0 3 * * *"
-    - cron: "0 6 * * *"
-    - cron: "0 10 * * *"
+    # 15분마다 깨어나서 "오늘 이 시간대의 목표 시각을 지났는지"만 확인한다.
+    # GitHub의 schedule 트리거는 몇 시간씩 지연될 수 있어서(무료 플랜 known issue),
+    # 한 번의 실행 안에서 길게 sleep하는 대신 자주 짧게 확인하는 방식으로 바꿨다.
+    - cron: "*/15 * * * *"
   workflow_dispatch:
     inputs:
       force:
-        description: "true면 시간대/랜덤 대기 없이 지금 즉시 발행 (테스트용)"
+        description: "true면 시간대/목표 시각 확인 없이 지금 즉시 발행 (테스트용)"
         required: false
         default: "false"
+
+concurrency:
+  group: scheduled-publish
+  cancel-in-progress: false
 
 permissions:
   contents: write
@@ -20,7 +23,7 @@ permissions:
 jobs:
   scheduled_publish:
     runs-on: ubuntu-latest
-    timeout-minutes: 300
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
 
@@ -31,7 +34,7 @@ jobs:
       - name: 의존성 설치
         run: pip install -r requirements.txt
 
-      - name: 대기열에서 랜덤 시각에 발행
+      - name: 목표 시각이 지났으면 발행
         env:
           THREADS_ACCESS_TOKEN: ${{ secrets.THREADS_ACCESS_TOKEN }}
           THREADS_USER_ID: ${{ secrets.THREADS_USER_ID }}
@@ -45,6 +48,7 @@ jobs:
         run: |
           git config user.name "threads-bot"
           git config user.email "actions@github.com"
+          git pull --rebase
           git add data/queue.json data/queue_history.json
           git diff --cached --quiet || git commit -m "chore: scheduled publish result"
           git push

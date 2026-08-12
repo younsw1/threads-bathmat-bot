@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import random
 from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -52,6 +54,38 @@ def seconds_remaining_in_window(window_name: str, now_kst: datetime | None = Non
     now = now_kst or datetime.now(KST)
     _, end = _window_bounds_today(window_name, now)
     return max(0.0, (end - now).total_seconds())
+
+
+def target_time_in_window(window_name: str, now_kst: datetime | None = None) -> datetime:
+    """이 시간대·오늘 날짜에 대해 항상 같은 결과가 나오는(결정적) 무작위 목표 시각을 계산한다.
+    GitHub Actions의 cron은 몇 시간씩 지연될 수 있어서, 한 번의 실행에서 sleep으로 기다리는
+    대신 매 실행마다 '지금이 목표 시각을 지났는지'만 짧게 확인하는 방식을 쓴다 (여러 번
+    실행돼도 항상 같은 목표 시각을 계산하므로 문제없다)."""
+    now = now_kst or datetime.now(KST)
+    start, end = _window_bounds_today(window_name, now)
+    seed_str = f"{now.date().isoformat()}-{window_name}"
+    seed = int(hashlib.sha256(seed_str.encode("utf-8")).hexdigest(), 16)
+    rng = random.Random(seed)
+    offset = rng.uniform(0, (end - start).total_seconds())
+    return start + timedelta(seconds=offset)
+
+
+def published_today_for_window(
+    window_name: str, history: list[dict[str, Any]], now_kst: datetime | None = None
+) -> bool:
+    """오늘 이 시간대에 이미 발행이 성공적으로 이뤄졌는지 확인한다 (중복 발행 방지)."""
+    now = now_kst or datetime.now(KST)
+    today = now.date()
+    for h in history:
+        if h.get("window") != window_name:
+            continue
+        try:
+            ts = datetime.fromisoformat(h["published_at"]).astimezone(KST)
+        except (KeyError, ValueError):
+            continue
+        if ts.date() == today:
+            return True
+    return False
 
 
 def upcoming_window_starts(

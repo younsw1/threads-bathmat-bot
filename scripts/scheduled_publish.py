@@ -1,16 +1,18 @@
 #!/usr/bin/env python
-"""GitHub Actions에서 실행되는 예약 발행 스크립트.
+"""GitHub Actions에서 자주(예: 15분마다) 실행되는 예약 발행 스크립트.
 
-로컬 대시보드에서 미리 만들어둔(승인된) 글을 data/queue.json에서 하나 꺼내,
-설정된 시간대(data/schedule_settings.json) 안의 랜덤한 시각까지 대기했다가
-Threads에 그대로 발행한다. Claude API는 호출하지 않는다 (텍스트는 이미 확정본).
+로컬 대시보드에서 미리 만들어둔(승인된) 글을 data/queue.json에서 하나 꺼내, 설정된
+시간대(data/schedule_settings.json) 안에서 그날그날 정해지는 목표 시각이 지나면 Threads에
+그대로 발행한다. Claude API는 호출하지 않는다 (텍스트는 이미 확정본).
+
+GitHub Actions의 schedule(cron) 트리거는 몇 시간씩 지연될 수 있어서, 한 번의 실행 안에서
+sleep으로 목표 시각까지 대기하지 않는다. 대신 자주 깨어나서 "지금이 목표 시각을 지났는가"만
+짧게 확인한다 (목표 시각은 날짜+시간대로 결정되므로 여러 번 실행돼도 항상 같다).
 """
 from __future__ import annotations
 
 import os
-import random
 import sys
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -39,19 +41,32 @@ def _notify_kakao(text: str) -> None:
 
 def main() -> int:
     force = os.environ.get("FORCE_PUBLISH", "").strip().lower() == "true"
+    now = datetime.now(schedule.KST)
 
-    window = schedule.current_window()
-    if not force:
+    if force:
+        window = schedule.current_window(now) or "force"
+        print("[force] 시간대/목표 시각 확인 없이 즉시 발행 모드입니다 (테스트용).")
+    else:
+        window = schedule.current_window(now)
         if window is None:
-            print("[skip] 지금은 설정된 시간대(아침/점심/저녁) 밖입니다.")
+            print("[skip] 지금은 설정된 시간대(아침/점심/오후/저녁) 밖입니다.")
             return 0
+
         settings = schedule.load_schedule_settings()
         if not settings.get(window):
             print(f"[skip] '{window}' 시간대는 비활성화되어 있습니다.")
             return 0
-    else:
-        print("[force] 시간대/대기 없이 즉시 발행 모드입니다 (테스트용).")
-        window = window or "force"
+
+        history = schedule.load_json(schedule.HISTORY_PATH, [])
+        if schedule.published_today_for_window(window, history, now):
+            print(f"[skip] 오늘 '{window}' 시간대에는 이미 발행했습니다.")
+            return 0
+
+        target = schedule.target_time_in_window(window, now)
+        if now < target:
+            print(f"[skip] '{window}' 목표 시각({target.strftime('%H:%M:%S')}) 전입니다 (지금 {now.strftime('%H:%M:%S')}).")
+            return 0
+        print(f"[ready] '{window}' 목표 시각({target.strftime('%H:%M:%S')})을 지났습니다 -> 발행 진행")
 
     queue = schedule.load_queue()
     if not queue:
@@ -60,14 +75,6 @@ def main() -> int:
 
     item = queue[0]
     print(f"[selected] queue_item_id={item['id']} product_id={item['product_id']}")
-
-    if force:
-        print("[wait] force 모드라 대기 없이 바로 발행합니다.")
-    else:
-        remaining = schedule.seconds_remaining_in_window(window)
-        delay = random.uniform(0, remaining)
-        print(f"[wait] '{window}' 시간대 안에서 {delay:.0f}초 대기 후 발행합니다.")
-        time.sleep(delay)
 
     client = ThreadsClient(
         access_token=os.environ["THREADS_ACCESS_TOKEN"],
