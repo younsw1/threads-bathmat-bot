@@ -31,12 +31,20 @@ class OpenAIImageClient:
         )
         return self._extract_images(resp)
 
-    def edit(self, prompt: str, image_bytes: bytes, size: str = "1024x1024") -> list[bytes]:
+    def edit(
+        self,
+        prompt: str,
+        image_bytes: bytes,
+        size: str = "1024x1024",
+        n: int = 1,
+        mime_type: str = "image/png",
+    ) -> list[bytes]:
+        ext = "jpg" if mime_type in ("image/jpeg", "image/jpg") else "png"
         resp = requests.post(
             f"{API_BASE}/images/edits",
             headers=self._headers(),
-            data={"model": MODEL, "prompt": prompt, "size": size},
-            files={"image": ("image.png", image_bytes, "image/png")},
+            data={"model": MODEL, "prompt": prompt, "size": size, "n": n},
+            files={"image": (f"image.{ext}", image_bytes, mime_type)},
             timeout=120,
         )
         return self._extract_images(resp)

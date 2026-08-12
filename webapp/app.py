@@ -20,6 +20,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 import anthropic
+import requests
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 
 from threads_bot import db, kakao_client, naver_client, openai_client, schedule
@@ -324,12 +325,21 @@ def _build_lifestyle_prompt(product_row: dict) -> str:
     category = product_row.get("category") or ""
     points = ", ".join(product_row.get("key_selling_points") or [])
     return (
-        f"사실적인 사진(포토리얼리스틱), 자연광, 실제 사람이 '{name}'을(를) 실사용하는 라이프스타일 스냅샷. "
+        f"첨부한 사진 속 '{name}' 상품의 실제 디자인·색상·형태·로고를 절대 바꾸지 말고 그대로 유지한 채, "
+        "실제 사람이 이 상품을 자연스럽게 실사용하는 라이프스타일 스냅샷으로 합성/편집해줘. "
         f"카테고리: {category}. "
         + (f"강조할 특징: {points}. " if points else "")
-        + "광고 카탈로그 이미지가 아니라 SNS에 올릴 법한 자연스러운 순간처럼 촬영하고, "
-        "상품이 화면에 또렷하게 보이도록 구도를 잡는다. 텍스트나 워터마크, 로고는 넣지 않는다."
+        + "광고 카탈로그 이미지가 아니라 SNS에 올릴 법한 자연스러운 순간처럼 배경과 상황만 새로 구성하고, "
+        "상품 자체의 생김새는 원본 사진과 동일해야 한다. 텍스트나 워터마크, 로고 추가는 하지 않는다."
     )
+
+
+def _download_image(url: str) -> tuple[bytes, str]:
+    resp = requests.get(url, timeout=30)
+    if resp.status_code >= 400:
+        raise ValueError(f"이미지를 불러오지 못했습니다 ({resp.status_code}): {url}")
+    content_type = resp.headers.get("Content-Type", "image/png").split(";")[0].strip()
+    return resp.content, content_type
 
 
 def _save_generated_images(product_id: int, image_bytes_list: list[bytes], prompt: str,
@@ -364,16 +374,27 @@ def ai_images_generate(product_id: int):
         flash("상품을 찾을 수 없습니다.", "error")
         return redirect(url_for("products"))
 
+    source_url = request.form.get("source_image_url") or product.get("thumbnail_url")
+    if not source_url:
+        flash("기반으로 삼을 실제 상품 사진이 없습니다. 먼저 '네이버에서 이미지 더 가져오기'로 사진을 가져와주세요.", "error")
+        return redirect(url_for("product_detail", product_id=product_id))
+
+    try:
+        source_bytes, mime_type = _download_image(source_url)
+    except ValueError as e:
+        flash(str(e), "error")
+        return redirect(url_for("ai_images", product_id=product_id))
+
     prompt = _build_lifestyle_prompt(product)
     client = openai_client.OpenAIImageClient(api_key=settings["openai_api_key"])
     try:
-        images = client.generate(prompt, n=2)
+        images = client.edit(prompt, source_bytes, n=2, mime_type=mime_type)
     except openai_client.OpenAIApiError as e:
         flash(f"이미지 생성 실패: {e}", "error")
         return redirect(url_for("ai_images", product_id=product_id))
 
     count = _save_generated_images(product_id, images, prompt)
-    flash(f"AI 이미지 {count}장을 생성했습니다.", "success")
+    flash(f"실제 상품 사진을 기반으로 AI 이미지 {count}장을 생성했습니다.", "success")
     return redirect(url_for("ai_images", product_id=product_id))
 
 
@@ -461,8 +482,10 @@ def fetch_images(product_id: int):
         flash(f"이미지 조회 실패: {e}", "error")
         return redirect(url_for("product_detail", product_id=product_id))
 
-    db.update_product(product_id, {"image_urls": images})
-    flash(f"이미지 {len(images)}장을 가져왔습니다.", "success")
+    gallery, detail = images["gallery"], images["detail"]
+    combined = list(dict.fromkeys(gallery + detail))
+    db.update_product(product_id, {"image_urls": combined, "detail_image_urls": detail})
+    flash(f"대표/추가 이미지 {len(gallery)}장 + 상세페이지 이미지 {len(detail)}장을 가져왔습니다.", "success")
     return redirect(url_for("product_detail", product_id=product_id))
 
 
@@ -811,6 +834,23 @@ def queue_delete(item_id: int):
     return redirect(url_for("queue_list"))
 
 
+def _publicize_image_url(item_id: int, image_url: str | None) -> str | None:
+    """상품 이미지가 이 컴퓨터에만 있는 AI 생성 이미지(/static/generated/...)라면,
+    Threads/GitHub Actions가 읽을 수 있도록 data/queue_images/에 복사해 GitHub에 커밋될
+    공개 raw.githubusercontent.com 주소로 바꿔준다. 발행이 끝나면 scheduled_publish.py가
+    이 사본을 다시 지운다 (저장소에 이미지가 계속 쌓이지 않도록)."""
+    if not image_url or not image_url.startswith("/static/generated/"):
+        return image_url
+    local_path = REPO_ROOT / "webapp" / image_url.lstrip("/")
+    if not local_path.exists():
+        return image_url
+
+    schedule.QUEUE_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+    dest_path = schedule.QUEUE_IMAGES_DIR / f"{item_id}{local_path.suffix or '.png'}"
+    dest_path.write_bytes(local_path.read_bytes())
+    return schedule.raw_github_url(f"data/queue_images/{dest_path.name}") or image_url
+
+
 @app.route("/queue/sync-to-github", methods=["POST"])
 def queue_sync_to_github():
     ready_items = sorted(
@@ -829,7 +869,7 @@ def queue_sync_to_github():
             "topic_tag": item["topic_tag"],
             "hook_category": item["hook_category"],
             "topic_summary": item["topic_summary"],
-            "image_url": item["image_url"],
+            "image_url": _publicize_image_url(item["id"], item["image_url"]),
             "reply_text": item["reply_text"],
             "source_review_ids": item["source_review_ids"],
         }
@@ -844,7 +884,7 @@ def queue_sync_to_github():
         windows = {}
     schedule.save_schedule_settings({**schedule.DEFAULT_SCHEDULE_SETTINGS, **windows})
 
-    add = _run_git("add", "data/queue.json", "data/schedule_settings.json")
+    add = _run_git("add", "data/queue.json", "data/schedule_settings.json", "data/queue_images")
     if add.returncode != 0:
         flash(f"git add 실패: {add.stderr}", "error")
         return redirect(url_for("queue_list"))

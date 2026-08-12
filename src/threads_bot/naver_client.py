@@ -1,12 +1,33 @@
 from __future__ import annotations
 
 import base64
+import re
 import time
 from dataclasses import dataclass
+from html import unescape
 from typing import Any
 
 import bcrypt
 import requests
+
+_IMG_SRC_RE = re.compile(r'<img[^>]+src=["\']([^"\']+)["\']', re.IGNORECASE)
+
+
+def _extract_detail_image_urls(html: str) -> list[str]:
+    """상세설명 HTML(detailContent)에 삽입된 <img> 태그에서 이미지 URL을 뽑아낸다."""
+    if not html:
+        return []
+    urls: list[str] = []
+    seen: set[str] = set()
+    for match in _IMG_SRC_RE.finditer(html):
+        url = unescape(match.group(1)).strip()
+        if url.startswith("//"):
+            url = "https:" + url
+        if not url.startswith("http") or url in seen:
+            continue
+        seen.add(url)
+        urls.append(url)
+    return urls
 
 API_BASE = "https://api.commerce.naver.com/external"
 TOKEN_URL = f"{API_BASE}/v1/oauth2/token"
@@ -63,9 +84,10 @@ class NaverCommerceClient:
             return None
         return channels[0].get("url")
 
-    def get_product_images(self, origin_product_no: str, token: str | None = None) -> list[str]:
+    def get_product_images(self, origin_product_no: str, token: str | None = None) -> dict[str, list[str]]:
         """상품 목록 조회는 대표 이미지 1장만 주므로, 전체 이미지가 필요하면
-        원상품 상세조회로 대표 이미지 + 추가 이미지를 가져온다."""
+        원상품 상세조회로 대표 이미지 + 추가 이미지 + 상세설명(detailContent)에 들어간
+        이미지까지 가져온다. {"gallery": [...], "detail": [...]} 형태로 반환한다."""
         token = token or self.get_access_token()
         resp = requests.get(
             f"{ORIGIN_PRODUCT_URL}/{origin_product_no}",
@@ -74,15 +96,18 @@ class NaverCommerceClient:
         )
         if resp.status_code >= 400:
             raise NaverApiError(f"상품 상세 조회 실패: {resp.status_code} {resp.text}")
-        images = (resp.json().get("originProduct") or {}).get("images") or {}
-        urls: list[str] = []
+        origin_product = resp.json().get("originProduct") or {}
+        images = origin_product.get("images") or {}
+        gallery: list[str] = []
         rep = images.get("representativeImage") or {}
         if rep.get("url"):
-            urls.append(rep["url"])
+            gallery.append(rep["url"])
         for extra in images.get("optionalImages") or []:
             if extra.get("url"):
-                urls.append(extra["url"])
-        return urls
+                gallery.append(extra["url"])
+        detail = _extract_detail_image_urls(origin_product.get("detailContent") or "")
+        detail = [url for url in detail if url not in gallery]
+        return {"gallery": gallery, "detail": detail}
 
     def list_products(self, page: int = 1, size: int = 50) -> dict[str, Any]:
         """상품 목록을 최근 등록순(productNo DESC)으로 정규화해서 반환한다.

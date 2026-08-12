@@ -97,6 +97,12 @@ def main() -> int:
     print(f"[published] post_id={post_id} reply_post_id={reply_post_id}")
     _notify_kakao(f"✅ 예약 발행 완료 ('{window}' 시간대)\n{item['text'][:80]}")
 
+    for ext in (".png", ".jpg", ".jpeg", ".webp"):
+        temp_image = schedule.QUEUE_IMAGES_DIR / f"{item['id']}{ext}"
+        if temp_image.exists():
+            temp_image.unlink()
+            print(f"[cleanup] {temp_image} 삭제 (발행 완료, 더 이상 공개 호스팅 불필요)")
+
     schedule.save_queue(queue[1:])
     schedule.append_history(
         {

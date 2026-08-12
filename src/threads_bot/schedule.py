@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 import json
 import random
+import re
+import subprocess
 from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -29,6 +31,7 @@ ROOT = Path(__file__).resolve().parents[2]
 QUEUE_PATH = ROOT / "data" / "queue.json"
 SETTINGS_PATH = ROOT / "data" / "schedule_settings.json"
 HISTORY_PATH = ROOT / "data" / "queue_history.json"
+QUEUE_IMAGES_DIR = ROOT / "data" / "queue_images"
 
 DEFAULT_SCHEDULE_SETTINGS = {"morning": False, "lunch": False, "afternoon": False, "evening": True}
 
@@ -113,6 +116,25 @@ def upcoming_window_starts(
                 break
         day_offset += 1
     return results
+
+
+def raw_github_url(rel_path: str) -> str | None:
+    """git remote origin(GitHub) 주소로부터 raw.githubusercontent.com 공개 URL을 만든다.
+    로컬 전용 이미지(webapp/static/generated/...)를 GitHub에 커밋해 Threads가 읽을 수 있는
+    공개 주소로 바꿀 때 쓴다. origin이 GitHub가 아니면 None."""
+    try:
+        result = subprocess.run(
+            ["git", "remote", "get-url", "origin"],
+            cwd=ROOT, capture_output=True, text=True, timeout=10,
+        )
+    except OSError:
+        return None
+    url = result.stdout.strip()
+    match = re.search(r"github\.com[:/]([^/]+)/(.+?)(\.git)?$", url)
+    if not match:
+        return None
+    owner, repo = match.group(1), match.group(2)
+    return f"https://raw.githubusercontent.com/{owner}/{repo}/main/{rel_path}"
 
 
 def load_json(path: Path, default: Any) -> Any:

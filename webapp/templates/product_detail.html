@@ -3,17 +3,21 @@
 {% block content %}
 <h1>{{ product.name }}</h1>
 
-<h2>이미지 ({{ product.image_urls | length }}장)</h2>
+<h2>이미지 ({{ product.image_urls | length }}장{% if product.detail_image_urls %}, 그중 상세페이지 {{ product.detail_image_urls | length }}장{% endif %})</h2>
+<p class="help">발행 미리보기 화면에서 이 중 원하는 사진을 골라 첨부할 수 있습니다.</p>
 <div class="img-choices">
   {% for img in product.image_urls %}
-    <img src="{{ img }}">
+    <label style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+      <img src="{{ img }}">
+      {% if img in product.detail_image_urls %}<span class="badge">상세페이지</span>{% endif %}
+    </label>
   {% else %}
     <img src="{{ product.thumbnail_url }}" style="width:64px;height:64px;object-fit:cover;border-radius:6px;">
   {% endfor %}
 </div>
 {% if product.origin_product_no %}
 <form method="post" action="{{ url_for('fetch_images', product_id=product.id) }}">
-  <button type="submit" class="secondary">네이버에서 이미지 더 가져오기</button>
+  <button type="submit" class="secondary">네이버에서 이미지 더 가져오기 (대표/추가 + 상세페이지)</button>
 </form>
 {% endif %}
 

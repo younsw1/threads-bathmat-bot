@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS products (
     price INTEGER,
     thumbnail_url TEXT,
     image_urls TEXT DEFAULT '[]',
+    detail_image_urls TEXT DEFAULT '[]',
     smartstore_url TEXT,
     category TEXT,
     reg_date TEXT,
@@ -153,6 +154,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE products ADD COLUMN origin_product_no TEXT")
     if "reg_date" not in product_cols:
         conn.execute("ALTER TABLE products ADD COLUMN reg_date TEXT")
+    if "detail_image_urls" not in product_cols:
+        conn.execute("ALTER TABLE products ADD COLUMN detail_image_urls TEXT DEFAULT '[]'")
 
     post_cols = {row[1] for row in conn.execute("PRAGMA table_info(posts)")}
     if "topic_tag" not in post_cols:
@@ -179,7 +182,7 @@ def update_settings(values: dict[str, Any], path: Path = DEFAULT_DB_PATH) -> Non
 
 # --- products -------------------------------------------------------------
 
-_JSON_PRODUCT_FIELDS = ("key_selling_points", "image_urls")
+_JSON_PRODUCT_FIELDS = ("key_selling_points", "image_urls", "detail_image_urls")
 
 
 def create_product(data: dict[str, Any], path: Path = DEFAULT_DB_PATH) -> int:
