@@ -218,7 +218,7 @@ def test_kakao():
 
 @app.route("/products")
 def products():
-    return render_template("products.html", products=db.list_products())
+    return render_template("products.html", products=db.list_unpublished_products())
 
 
 @app.route("/products/published")

@@ -190,6 +190,19 @@ def list_products(path: Path = DEFAULT_DB_PATH) -> list[dict[str, Any]]:
         return [_product_row_to_dict(r) for r in rows]
 
 
+def list_unpublished_products(path: Path = DEFAULT_DB_PATH) -> list[dict[str, Any]]:
+    """아직 한 번도 발행되지 않은 상품만 반환한다 (발행된 상품은 '발행된 상품' 페이지에서 관리)."""
+    with connect(path) as conn:
+        rows = conn.execute(
+            """
+            SELECT * FROM products
+            WHERE id NOT IN (SELECT DISTINCT product_id FROM posts)
+            ORDER BY created_at DESC
+            """
+        ).fetchall()
+        return [_product_row_to_dict(r) for r in rows]
+
+
 def list_published_products(path: Path = DEFAULT_DB_PATH) -> list[dict[str, Any]]:
     """한 번이라도 발행된 적 있는 상품만, 최근 발행일 순으로 반환한다."""
     with connect(path) as conn:
