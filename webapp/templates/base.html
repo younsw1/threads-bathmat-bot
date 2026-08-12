@@ -24,6 +24,7 @@
       <a href="{{ url_for('queue_list') }}" class="{{ 'active' if request.path == url_for('queue_list') }}">예약 대기열</a>
       <a href="{{ url_for('new_product') }}" class="{{ 'active' if request.path == url_for('new_product') }}">상품 추가</a>
       <a href="{{ url_for('setup') }}" class="{{ 'active' if request.path == url_for('setup') }}">설정</a>
+      <a href="{{ url_for('manual') }}" class="{{ 'active' if request.path == url_for('manual') }}">사용설명서</a>
     </nav>
     <div class="sidebar-footer">
       <span class="status-dot"></span> 로컬 실행 중

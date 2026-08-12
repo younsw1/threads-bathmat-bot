@@ -34,6 +34,10 @@ scripts/publish.py       (부록) 상품 1개를 CLI+GitHub Actions로 자동 �
 
 ## 로컬 대시보드 실행하기
 
+터미널 사용이 익숙하지 않다면 `시작하기.bat`을 더블클릭하세요 — Python이 없으면 설치
+안내를 띄우고, 있으면 최초 1회 가상환경 생성 + 의존성 설치까지 자동으로 해준 뒤 대시보드를
+띄웁니다 (자세한 사용법은 `사용설명서.md` 참고). 아래는 터미널로 직접 실행하는 방법입니다.
+
 ```bash
 python -m venv .venv
 .venv\Scripts\activate        # Windows

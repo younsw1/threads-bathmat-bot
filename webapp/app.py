@@ -20,6 +20,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 import anthropic
+import markdown
 import requests
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 
@@ -216,6 +217,14 @@ def test_kakao():
     except kakao_client.KakaoApiError as e:
         flash(f"카카오 테스트 실패: {e}", "error")
     return redirect(url_for("setup"))
+
+
+@app.route("/manual")
+def manual():
+    manual_path = REPO_ROOT / "사용설명서.md"
+    text = manual_path.read_text(encoding="utf-8") if manual_path.exists() else "설명서 파일을 찾을 수 없습니다."
+    html = markdown.markdown(text, extensions=["tables", "fenced_code", "toc"])
+    return render_template("manual.html", manual_html=html)
 
 
 # --- 상품 목록 ---------------------------------------------------------

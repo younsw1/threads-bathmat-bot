@@ -298,3 +298,59 @@ button.danger:hover { background: var(--danger-soft); }
   border: 2px solid var(--border);
 }
 .img-choices img.selected { border-color: var(--accent); }
+
+/* ---- 사용설명서(마크다운 렌더링) --------------------------------------- */
+.manual { max-width: 760px; }
+.manual h1 { margin-top: 4px; }
+.manual h2 {
+  font-family: var(--font-body);
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 1.08rem;
+  color: var(--text);
+  border-bottom: none;
+  margin: 34px 0 10px;
+}
+.manual h3 {
+  font-size: 0.95rem;
+  color: var(--accent);
+  margin: 22px 0 8px;
+}
+.manual p, .manual li { font-size: 0.92rem; color: var(--text); }
+.manual ul, .manual ol { padding-left: 1.3em; margin: 8px 0; }
+.manual li { margin: 4px 0; }
+.manual a { color: var(--accent); }
+.manual code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+.manual pre {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  overflow-x: auto;
+}
+.manual pre code { background: none; border: none; padding: 0; }
+.manual blockquote {
+  margin: 10px 0;
+  padding: 8px 14px;
+  border-left: 3px solid var(--accent-dim);
+  background: var(--panel);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  color: var(--text-muted);
+  font-size: 0.88rem;
+}
+.manual blockquote p { margin: 0; }
+.manual hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+.manual table { display: block; overflow-x: auto; border-collapse: collapse; width: 100%; font-size: 0.86rem; }
+.manual th, .manual td {
+  border: 1px solid var(--border);
+  padding: 7px 10px;
+  text-align: left;
+}
+.manual th { background: var(--panel-alt); color: var(--text-muted); font-weight: 600; }
