@@ -50,7 +50,8 @@
         <form method="post" action="{{ url_for('queue_edit', item_id=item.id) }}">
           <textarea name="text" style="min-height:140px;">{{ item.text }}</textarea>
           <button type="submit" class="secondary">텍스트 저장</button>
-          <span class="help">수정하면 다시 검토가 필요해 '초안' 상태로 돌아갑니다.</span>
+          <span class="help">수정하면 다시 검토가 필요해 '초안' 상태로 돌아갑니다. 수정본은 이후
+          글 생성 시 AI가 문체 예시로 참고합니다.</span>
         </form>
       {% endif %}
       {% if item.reply_text %}<div class="help">↳ 답글: {{ item.reply_text }}</div>{% endif %}

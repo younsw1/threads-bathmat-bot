@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
@@ -97,6 +98,14 @@ CREATE TABLE IF NOT EXISTS generated_images (
     file_path TEXT NOT NULL,
     prompt TEXT,
     parent_id INTEGER REFERENCES generated_images(id) ON DELETE SET NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS edit_examples (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    original_text TEXT NOT NULL,
+    edited_text TEXT NOT NULL,
+    source TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 """
@@ -338,6 +347,41 @@ def list_favorite_posts(limit: int = 5, path: Path = DEFAULT_DB_PATH) -> list[di
             "SELECT * FROM posts WHERE is_favorite = 1 ORDER BY timestamp DESC LIMIT ?", (limit,)
         ).fetchall()
         return [dict(r) for r in rows]
+
+
+def add_edit_example(
+    original_text: str, edited_text: str, source: str, path: Path = DEFAULT_DB_PATH
+) -> None:
+    """AI가 쓴 글을 사용자가 직접 고쳐서 저장하면, 그 교정본을 문체 학습 예시로 남긴다.
+    원본과 똑같으면(실질적인 수정이 없으면) 남기지 않는다."""
+    if original_text.strip() == edited_text.strip():
+        return
+    created_at = datetime.now(timezone.utc).isoformat()
+    with connect(path) as conn:
+        conn.execute(
+            "INSERT INTO edit_examples (original_text, edited_text, source, created_at) "
+            "VALUES (?, ?, ?, ?)",
+            (original_text, edited_text, source, created_at),
+        )
+
+
+def list_style_examples(limit: int = 5, path: Path = DEFAULT_DB_PATH) -> list[dict[str, Any]]:
+    """즐겨찾기한 발행글 + 사용자가 직접 수정해서 저장한 글을 합쳐 최신순으로 반환한다.
+    둘 다 '사용자가 실제로 원하는 문체'를 보여주는 신호라 함께 few-shot 예시로 쓴다."""
+    with connect(path) as conn:
+        favorites = conn.execute(
+            "SELECT text, timestamp AS created_at FROM posts "
+            "WHERE is_favorite = 1 ORDER BY timestamp DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        edits = conn.execute(
+            "SELECT edited_text AS text, created_at FROM edit_examples "
+            "ORDER BY created_at DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+    combined = [dict(r) for r in favorites] + [dict(r) for r in edits]
+    combined.sort(key=lambda r: r["created_at"], reverse=True)
+    return combined[:limit]
 
 
 # --- scheduled_queue -------------------------------------------------------

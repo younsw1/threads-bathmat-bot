@@ -158,7 +158,8 @@ def _build_style_examples_block(style_examples: list[dict[str, Any]] | None) -> 
         return ""
     lines = [f'  ---\n  "{ex["text"]}"' for ex in style_examples]
     return (
-        "\n\n[사용자가 직접 즐겨찾기로 지정한, 이 계정의 문체를 가장 잘 보여주는 과거 글 예시]\n"
+        "\n\n[사용자가 즐겨찾기로 지정했거나 직접 고쳐서 저장한, 이 계정이 실제로 원하는 문체를 "
+        "보여주는 예시]\n"
         "아래 글들의 말투/문장 리듬/톤을 최우선으로 참고해서 쓰세요. 내용을 베끼거나 같은 "
         "주제를 반복하지는 말고, 어떻게 쓰는지(문체)만 배우세요:\n" + "\n".join(lines)
     )

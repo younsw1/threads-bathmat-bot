@@ -574,7 +574,7 @@ def generate_draft(product_id: int):
     product = Product(raw=product_row)
     reviews = db.list_reviews(product_id) if product_row["mode"] == "review" else []
     recent_records = db.recent_posts(product_id)
-    style_examples = db.list_favorite_posts(limit=5)
+    style_examples = db.list_style_examples(limit=5)
     client = anthropic.Anthropic(api_key=settings["anthropic_api_key"])
 
     try:
@@ -619,6 +619,7 @@ def edit_draft_text(product_id: int):
     if not text:
         flash("본문이 비어 있어 저장하지 않았습니다.", "error")
         return redirect(url_for("preview", product_id=product_id))
+    db.add_edit_example(draft["text"], text, source="preview")
     draft["text"] = text
     session[f"draft_{product_id}"] = draft
     flash("본문을 수정했습니다.", "success")
@@ -769,7 +770,7 @@ def queue_add(product_id: int):
     product = Product(raw=product_row)
     reviews = db.list_reviews(product_id) if product_row["mode"] == "review" else []
     recent_records = db.recent_posts(product_id)
-    style_examples = db.list_favorite_posts(limit=5)
+    style_examples = db.list_style_examples(limit=5)
     client = anthropic.Anthropic(api_key=settings["anthropic_api_key"])
 
     try:
@@ -838,6 +839,9 @@ def queue_edit(item_id: int):
     if not text:
         flash("본문이 비어 있어 저장하지 않았습니다.", "error")
         return redirect(url_for("queue_list"))
+    item = db.get_queue_item(item_id)
+    if item:
+        db.add_edit_example(item["text"], text, source="queue")
     db.update_queue_item(item_id, {"text": text, "status": "draft"})
     flash("텍스트를 저장했습니다. 다시 검토 후 승인해주세요.", "success")
     return redirect(url_for("queue_list"))
@@ -863,7 +867,7 @@ def queue_regenerate(item_id: int):
     product = Product(raw=product_row)
     reviews = db.list_reviews(item["product_id"]) if product_row["mode"] == "review" else []
     recent_records = db.recent_posts(item["product_id"])
-    style_examples = db.list_favorite_posts(limit=5)
+    style_examples = db.list_style_examples(limit=5)
     client = anthropic.Anthropic(api_key=settings["anthropic_api_key"])
 
     try:

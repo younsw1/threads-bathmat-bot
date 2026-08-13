@@ -8,7 +8,8 @@
 
 <form method="post" action="{{ url_for('edit_draft_text', product_id=product.id) }}">
   <textarea name="text" rows="10" style="width:100%; font-family:inherit;">{{ draft.text }}</textarea>
-  <div class="help">Threads 500자 제한 (현재 {{ draft.text|length }}자)</div>
+  <div class="help">Threads 500자 제한 (현재 {{ draft.text|length }}자) · 수정해서 저장하면
+  이후 글 생성 시 AI가 이 문체를 참고합니다.</div>
   <button type="submit" class="secondary">본문 저장</button>
 </form>
 
