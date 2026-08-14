@@ -1,9 +1,9 @@
 name: Threads 자동 발행
 
 on:
-  schedule:
-    # 매일 KST 09:00 (UTC 00:00)
-    - cron: "0 0 * * *"
+  # 상품 1개짜리 CLI 자동화(README 부록)를 쓸 때만 수동으로 실행하는 워크플로우입니다.
+  # 여러 상품을 관리하는 대시보드 체제로 넘어온 뒤로는 이 방식을 쓰지 않아서, 매일 자동 실행되던
+  # schedule 트리거를 뺐습니다 (ANTHROPIC_API_KEY 등 필요한 시크릿이 없어 매번 실패하고 있었음).
   workflow_dispatch:
     inputs:
       dry_run:
