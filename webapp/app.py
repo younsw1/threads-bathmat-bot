@@ -410,7 +410,7 @@ def ai_images_generate(product_id: int):
     prompt = _build_lifestyle_prompt(product, user_request=user_request or None)
     client = openai_client.OpenAIImageClient(api_key=settings["openai_api_key"])
     try:
-        images = client.edit(prompt, source_bytes, n=2, mime_type=mime_type)
+        images = client.edit(prompt, source_bytes, n=1, mime_type=mime_type)
     except openai_client.OpenAIApiError as e:
         flash(f"이미지 생성 실패: {e}", "error")
         return redirect(url_for("ai_images", product_id=product_id))

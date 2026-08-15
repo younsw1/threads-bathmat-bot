@@ -340,6 +340,47 @@ button.danger:hover { background: var(--danger-soft); }
   visibility: visible;
 }
 
+/* ---- AI 이미지 생성 진행률 오버레이 ------------------------------------- */
+.progress-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 14, 20, 0.88);
+  z-index: 1000;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+.progress-overlay.visible { display: flex; }
+.progress-overlay p { color: var(--text-muted); font-size: 0.9rem; }
+.progress-ring {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: conic-gradient(var(--accent) var(--percent), var(--panel-alt) 0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: background 0.15s linear;
+}
+.progress-ring::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 50%;
+  background: var(--bg);
+}
+.progress-ring span {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
 /* ---- 사용설명서(마크다운 렌더링) --------------------------------------- */
 .manual { max-width: 760px; }
 .manual h1 { margin-top: 4px; }
