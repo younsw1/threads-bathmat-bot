@@ -46,6 +46,17 @@ def _publish_instagram(item: dict, image_urls: list[str]) -> str | None:
         return None
 
 
+def _select_queue_item(queue: list[dict], today: str) -> dict | None:
+    """대기열 순서대로, 오늘(today, KST 기준 YYYY-MM-DD) 발행 가능한 첫 항목을 고른다.
+    scheduled_date가 없거나 오늘이거나 이미 지난 날짜(놓친 경우 그냥 지금 발행)인 항목만
+    대상이고, 아직 오지 않은 미래 날짜로 지정된 항목은 그 날짜가 될 때까지 건너뛴다."""
+    for item in queue:
+        d = item.get("scheduled_date")
+        if not d or d <= today:
+            return item
+    return None
+
+
 def _notify_kakao(text: str) -> None:
     """KAKAO_* 시크릿이 설정돼 있으면 카카오톡 '나에게 보내기'로 알린다.
     설정 안 돼 있거나 실패해도 조용히 넘어간다 (알림 때문에 발행 자체가 실패로 처리되면 안 됨)."""
@@ -96,7 +107,10 @@ def main() -> int:
         print("[skip] 대기열이 비어 있습니다.")
         return 0
 
-    item = queue[0]
+    item = _select_queue_item(queue, now.date().isoformat())
+    if item is None:
+        print("[skip] 대기열에 오늘 발행 가능한 항목이 없습니다 (모두 미래 날짜로 예약됨).")
+        return 0
     print(f"[selected] queue_item_id={item['id']} product_id={item['product_id']}")
 
     client = ThreadsClient(
@@ -130,7 +144,7 @@ def main() -> int:
             temp_image.unlink()
             print(f"[cleanup] {temp_image} 삭제 (발행 완료, 더 이상 공개 호스팅 불필요)")
 
-    schedule.save_queue(queue[1:])
+    schedule.save_queue([i for i in queue if i["id"] != item["id"]])
     schedule.append_history(
         {
             "queue_item_id": item["id"],

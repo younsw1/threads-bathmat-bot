@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import subprocess
 import sys
 import threading
@@ -901,6 +902,9 @@ def queue_add(product_id: int):
     publish_instagram = request.form.get("publish_instagram") == "on" and bool(
         product_row.get("thumbnail_url")
     )
+    scheduled_date = request.form.get("scheduled_date", "").strip() or None
+    if scheduled_date and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", scheduled_date):
+        scheduled_date = None
     db.add_queue_item(
         {
             "product_id": product_id,
@@ -913,6 +917,7 @@ def queue_add(product_id: int):
             "reply_text": _reply_text_for(product_row),
             "source_review_ids": post.source_review_ids,
             "publish_instagram": 1 if publish_instagram else 0,
+            "scheduled_date": scheduled_date,
         }
     )
     flash("대기열에 초안을 추가했습니다. 검토 후 승인해주세요.", "success")
@@ -965,6 +970,20 @@ def queue_edit(item_id: int):
         db.add_edit_example(item["text"], text, source="queue")
     db.update_queue_item(item_id, {"text": text, "status": "draft"})
     flash("텍스트를 저장했습니다. 다시 검토 후 승인해주세요.", "success")
+    return redirect(url_for("queue_list"))
+
+
+@app.route("/queue/<int:item_id>/set-date", methods=["POST"])
+def queue_set_date(item_id: int):
+    scheduled_date = request.form.get("scheduled_date", "").strip() or None
+    if scheduled_date and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", scheduled_date):
+        flash("날짜 형식이 올바르지 않습니다.", "error")
+        return redirect(url_for("queue_list"))
+    db.update_queue_item(item_id, {"scheduled_date": scheduled_date})
+    flash(
+        f"발행 날짜를 {scheduled_date}로 지정했습니다." if scheduled_date else "발행 날짜 지정을 해제했습니다 (순서대로 자동 발행).",
+        "success",
+    )
     return redirect(url_for("queue_list"))
 
 
@@ -1084,6 +1103,7 @@ def queue_sync_to_github():
                 "source_review_ids": item["source_review_ids"],
                 "publish_instagram": publish_instagram,
                 "instagram_caption": instagram_caption,
+                "scheduled_date": item["scheduled_date"],
             }
         )
     schedule.save_queue(queue_export)

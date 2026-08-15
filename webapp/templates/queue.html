@@ -43,6 +43,17 @@
       <span class="badge">{{ item.hook_category }}</span>
       {% if item.topic_tag %}<span class="badge">#{{ item.topic_tag }}</span>{% endif %}
       {% if item.publish_instagram %}<span class="badge">Instagram 동시예약{{ ' 완료' if item.instagram_post_id else '' }}</span>{% endif %}
+      {% if item.status != 'published' %}
+      <form method="post" action="{{ url_for('queue_set_date', item_id=item.id) }}" style="display:inline-flex; align-items:center; gap:4px; margin-top:4px;">
+        <label style="font-weight:normal;">발행 날짜
+          <input type="date" name="scheduled_date" value="{{ item.scheduled_date or '' }}">
+        </label>
+        <button type="submit" class="secondary">저장</button>
+      </form>
+      <div class="help">{{ '지정한 날짜의 시간대에 발행됩니다.' if item.scheduled_date else '날짜 미지정 — 대기열 순서대로 다음 활성 시간대에 자동 발행됩니다.' }}</div>
+      {% elif item.scheduled_date %}
+      <span class="badge">발행일: {{ item.scheduled_date }}</span>
+      {% endif %}
       {% if item.id in eta_by_id %}<div class="help">예상 발행: {{ eta_by_id[item.id] }} (시간대 안 무작위 시각이라 근사치)</div>{% endif %}
 
       {% if item.status == 'published' %}
