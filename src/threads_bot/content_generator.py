@@ -76,6 +76,69 @@ def suggest_selling_points(
     raise RuntimeError("Claude가 suggest_selling_points 도구를 호출하지 않았습니다.")
 
 
+SUGGEST_HASHTAGS_TOOL = {
+    "name": "suggest_hashtags",
+    "description": "Instagram 게시물에 붙일 해시태그 후보를 제출한다.",
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "hashtags": {
+                "type": "array",
+                "items": {"type": "string"},
+                "minItems": 8,
+                "maxItems": 12,
+                "description": "# 없이 태그 단어만 (예: '욕실매트'). 한국어 위주, 상품/카테고리/구매 의도 키워드.",
+            },
+        },
+        "required": ["hashtags"],
+    },
+}
+
+
+def generate_instagram_hashtags(
+    product: Product,
+    topic_tag: str | None = None,
+    client: anthropic.Anthropic | None = None,
+) -> list[str]:
+    """Instagram 게시물용 해시태그 8~12개를 추천받는다. Threads는 페르소나 규칙상 해시태그를
+    쓰지 않지만(persona.yaml), Instagram은 해시태그가 탐색/검색 노출의 핵심이라 별도로 생성한다."""
+    client = client or anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    r = product.raw
+    points = ", ".join(r.get("key_selling_points") or [])
+
+    message = client.messages.create(
+        model=MODEL,
+        max_tokens=512,
+        system=(
+            "당신은 Instagram 마케팅 담당자입니다. 주어진 상품 정보로 Instagram 탐색/검색 "
+            "노출에 도움이 될 해시태그를 추천합니다. 브랜드명이나 지어낸 캠페인 이름은 만들지 "
+            "않고, 실제로 사람들이 검색할 법한 상품/카테고리/구매 의도 키워드 위주로 제안합니다. "
+            "너무 일반적인(#일상, #맞팔 같은) 태그는 피합니다."
+        ),
+        tools=[SUGGEST_HASHTAGS_TOOL],
+        tool_choice={"type": "tool", "name": "suggest_hashtags"},
+        messages=[
+            {
+                "role": "user",
+                "content": (
+                    f"상품명: {r.get('name') or '(미입력)'}\n"
+                    f"카테고리: {r.get('category') or '(미입력)'}\n"
+                    f"핵심 셀링포인트: {points or '(미입력)'}\n"
+                    f"주제 태그: {topic_tag or '(없음)'}\n\n"
+                    "suggest_hashtags 도구를 호출해서 결과를 제출하세요."
+                ),
+            }
+        ],
+    )
+
+    for block in message.content:
+        if block.type == "tool_use" and block.name == "suggest_hashtags":
+            tags = block.input["hashtags"]
+            return [f"#{t.lstrip('#').replace(' ', '')}" for t in tags if t.strip()]
+
+    raise RuntimeError("Claude가 suggest_hashtags 도구를 호출하지 않았습니다.")
+
+
 GENERATE_POST_TOOL = {
     "name": "generate_post",
     "description": "쓰레드에 올릴 글 하나를 확정해서 제출한다.",

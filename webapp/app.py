@@ -25,7 +25,7 @@ import requests
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 
 from threads_bot import db, instagram_client, kakao_client, naver_client, openai_client, schedule
-from threads_bot.content_generator import generate, suggest_selling_points
+from threads_bot.content_generator import generate, generate_instagram_hashtags, suggest_selling_points
 from threads_bot.persona import Persona
 from threads_bot.product import Product
 from threads_bot.threads_client import ThreadsApiError, ThreadsClient
@@ -776,12 +776,22 @@ def publish(product_id: int):
         if not image_urls:
             flash("Instagram은 사진이 최소 1장 있어야 발행할 수 있어, 이번엔 건너뛰었습니다.", "error")
         else:
+            caption = draft["text"]
+            try:
+                claude_client = anthropic.Anthropic(api_key=settings["anthropic_api_key"])
+                hashtags = generate_instagram_hashtags(
+                    Product(raw=product), topic_tag=draft.get("topic_tag"), client=claude_client
+                )
+                if hashtags:
+                    caption = f"{draft['text']}\n\n{' '.join(hashtags)}"
+            except Exception as e:  # noqa: BLE001
+                flash(f"Instagram 해시태그 추천 실패 (태그 없이 발행합니다): {e}", "error")
             try:
                 ig_client = instagram_client.InstagramClient(
                     access_token=settings.get("instagram_access_token") or "",
                     ig_user_id=settings.get("instagram_business_id") or "",
                 )
-                instagram_post_id = ig_client.publish_post(draft["text"], image_urls)
+                instagram_post_id = ig_client.publish_post(caption, image_urls)
                 if product["link_placement"] == "reply" and product.get("smartstore_url"):
                     ig_client.comment(
                         instagram_post_id, f"🔗 상품 보러가기\n{product['smartstore_url']}"
