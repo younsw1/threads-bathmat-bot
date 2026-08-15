@@ -91,6 +91,33 @@ def published_today_for_window(
     return False
 
 
+def todays_publish_plan(now_kst: datetime | None = None) -> list[dict[str, Any]]:
+    """오늘 아직 지나지 않은, 활성화된 시간대별로 지금 이 순간의 대기열 스냅샷 기준
+    몇 번째 항목이 발행될지 예측한다 (홈 화면 요약용). 실제 발행은 그 시간대의 무작위
+    시각에 대기열 맨 앞부터 순서대로 소비하는 방식이라, 대기열이 나중에 바뀌면 이 예측도
+    달라질 수 있는 근사치다. 이미 끝나버린(놓친) 시간대는 목록에서 빠진다."""
+    now = now_kst or datetime.now(KST)
+    settings = load_schedule_settings()
+    history = load_json(HISTORY_PATH, [])
+    queue = load_queue()
+
+    remaining_windows = []
+    for name in WINDOWS:  # dict 순서 = 하루 중 시간 순서
+        if not settings.get(name):
+            continue
+        if published_today_for_window(name, history, now):
+            continue
+        _, end = _window_bounds_today(name, now)
+        if now > end:
+            continue  # 이미 지나버려서 오늘은 더 이상 발행되지 않을 시간대
+        remaining_windows.append(name)
+
+    plan = []
+    for i, window_name in enumerate(remaining_windows):
+        plan.append({"window": window_name, "item": queue[i] if i < len(queue) else None})
+    return plan
+
+
 def upcoming_window_starts(
     enabled: dict[str, bool], count: int, now_kst: datetime | None = None
 ) -> list[tuple[str, datetime]]:

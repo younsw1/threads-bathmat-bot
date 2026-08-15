@@ -46,7 +46,46 @@ def _settings_ready() -> bool:
 
 @app.route("/")
 def index():
-    return redirect(url_for("products") if _settings_ready() else url_for("setup"))
+    return redirect(url_for("home") if _settings_ready() else url_for("setup"))
+
+
+@app.route("/home")
+def home():
+    settings = db.get_settings()
+    queue_items = db.list_queue_items()
+    draft_count = sum(1 for i in queue_items if i["status"] == "draft")
+    ready_count = sum(1 for i in queue_items if i["status"] == "ready")
+
+    today_plan = []
+    for entry in schedule.todays_publish_plan():
+        item = entry["item"]
+        product = db.get_product(item["product_id"]) if item else None
+        today_plan.append(
+            {
+                "window_label": schedule.WINDOW_LABELS[entry["window"]],
+                "item": item,
+                "product_name": product["name"] if product else None,
+            }
+        )
+
+    settings_checklist = [
+        ("Threads", bool(settings.get("threads_access_token") and settings.get("threads_user_id"))),
+        ("Claude", bool(settings.get("anthropic_api_key"))),
+        ("네이버 커머스API", bool(settings.get("naver_client_id") and settings.get("naver_client_secret"))),
+        ("OpenAI (AI 이미지)", bool(settings.get("openai_api_key"))),
+        ("카카오 알림", bool(settings.get("kakao_notify_enabled") and settings.get("kakao_refresh_token"))),
+    ]
+
+    return render_template(
+        "home.html",
+        unpublished_count=len(db.list_unpublished_products()),
+        published_count=len(db.list_published_products()),
+        draft_count=draft_count,
+        ready_count=ready_count,
+        today_plan=today_plan,
+        recent_posts=db.list_recent_posts_all(limit=5),
+        settings_checklist=settings_checklist,
+    )
 
 
 # --- 설정 ------------------------------------------------------------

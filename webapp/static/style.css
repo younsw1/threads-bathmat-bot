@@ -436,3 +436,31 @@ button.danger:hover { background: var(--danger-soft); }
   text-align: left;
 }
 .manual th { background: var(--panel-alt); color: var(--text-muted); font-weight: 600; }
+
+/* ---- 홈 요약 통계 ------------------------------------------------------ */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+  margin: 16px 0 8px;
+}
+.stat-tile {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent-dim);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.stat-value {
+  font-family: var(--font-mono);
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+.stat-label {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}

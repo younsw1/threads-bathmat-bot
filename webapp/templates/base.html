@@ -19,6 +19,7 @@
       </div>
     </div>
     <nav>
+      <a href="{{ url_for('home') }}" class="{{ 'active' if request.path == url_for('home') }}">홈</a>
       <a href="{{ url_for('products') }}" class="{{ 'active' if request.path == url_for('products') }}">상품 목록</a>
       <a href="{{ url_for('published_products') }}" class="{{ 'active' if request.path == url_for('published_products') }}">발행된 상품</a>
       <a href="{{ url_for('queue_list') }}" class="{{ 'active' if request.path == url_for('queue_list') }}">예약 대기열</a>

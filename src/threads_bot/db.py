@@ -326,6 +326,18 @@ def recent_posts(product_id: int, n: int = 14, path: Path = DEFAULT_DB_PATH) -> 
     return list_posts(product_id, path)[:n]
 
 
+def list_recent_posts_all(limit: int = 5, path: Path = DEFAULT_DB_PATH) -> list[dict[str, Any]]:
+    """상품에 상관없이 전체 발행 이력 중 최신 N건 (홈 화면 요약용)."""
+    with connect(path) as conn:
+        rows = conn.execute(
+            "SELECT posts.*, products.name AS product_name FROM posts "
+            "JOIN products ON products.id = posts.product_id "
+            "ORDER BY posts.timestamp DESC LIMIT ?",
+            (limit,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+
 def recent_review_ids(product_id: int, n: int = 14, path: Path = DEFAULT_DB_PATH) -> set[str]:
     ids: set[str] = set()
     for p in recent_posts(product_id, n, path):
