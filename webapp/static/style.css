@@ -297,6 +297,7 @@ button.danger:hover { background: var(--danger-soft); }
   padding: 0;
   margin: 0;
   font: inherit;
+  line-height: 0;
 }
 .img-choices img {
   width: 64px; height: 64px;
@@ -304,18 +305,31 @@ button.danger:hover { background: var(--danger-soft); }
   border-radius: 6px;
   cursor: pointer;
   border: 2px solid var(--border);
-  transition: width 0.15s ease, height 0.15s ease;
 }
 .img-choices img.selected { border-color: var(--accent); }
-.img-choices img:hover {
-  width: 500px;
-  height: 500px;
+
+/* 확대 미리보기: 실제 썸네일 크기는 절대 바뀌지 않고, 투명도만 전환되는 별도
+   레이어라 레이아웃이 흔들리거나 다른 카드가 밀리는 일이 없다. */
+.img-zoom-preview {
   position: absolute;
   top: 0;
   left: 0;
-  z-index: 100;
+  width: 500px;
+  height: 500px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 2px solid var(--accent);
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
-  border-color: var(--accent);
+  z-index: 200;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.1s ease;
+}
+.img-choices label:hover .img-zoom-preview,
+.img-choices .img-select-btn:hover .img-zoom-preview {
+  opacity: 1;
+  visibility: visible;
 }
 
 /* ---- 사용설명서(마크다운 렌더링) --------------------------------------- */

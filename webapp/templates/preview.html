@@ -26,6 +26,7 @@
     {% for img in product.image_urls %}
       <label style="display:flex; flex-direction:column; align-items:center; gap:4px;">
         <img src="{{ img }}" class="{{ 'selected' if img in draft.selected_images else '' }}">
+        <img src="{{ img }}" class="img-zoom-preview" aria-hidden="true">
         <input type="checkbox" name="image_url" value="{{ img }}" {% if img in draft.selected_images %}checked{% endif %}>
       </label>
     {% endfor %}

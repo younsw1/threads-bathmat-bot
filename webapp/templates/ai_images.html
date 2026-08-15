@@ -17,6 +17,7 @@
       <label style="display:flex; flex-direction:column; align-items:center; gap:4px;">
         <input type="radio" name="source_image_url" value="{{ img }}" {% if loop.first %}checked{% endif %}>
         <img src="{{ img }}">
+        <img src="{{ img }}" class="img-zoom-preview" aria-hidden="true">
         {% if img in product.detail_image_urls %}<span class="badge">상세페이지</span>{% endif %}
       </label>
     {% endfor %}

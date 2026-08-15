@@ -13,6 +13,7 @@
       <input type="hidden" name="image_url" value="{{ img }}">
       <button type="submit" class="img-select-btn" title="기본 이미지로 지정">
         <img src="{{ img }}" class="{{ 'selected' if img == product.thumbnail_url else '' }}">
+        <img src="{{ img }}" class="img-zoom-preview" aria-hidden="true">
       </button>
       {% if img == product.thumbnail_url %}<span class="badge">기본 이미지</span>{% endif %}
       {% if img in product.detail_image_urls %}<span class="badge">상세페이지</span>{% endif %}
