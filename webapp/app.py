@@ -333,13 +333,21 @@ def product_detail(product_id: int):
 
 # --- AI 이미지 생성/수정 --------------------------------------------------
 
-def _build_lifestyle_prompt(product_row: dict) -> str:
+def _build_lifestyle_prompt(product_row: dict, user_request: str | None = None) -> str:
     name = product_row.get("name") or "상품"
     category = product_row.get("category") or ""
     points = ", ".join(product_row.get("key_selling_points") or [])
-    return (
+    keep_note = (
         f"첨부한 사진 속 '{name}' 상품의 실제 디자인·색상·형태·로고를 절대 바꾸지 말고 그대로 유지한 채, "
-        "실제 사람이 이 상품을 자연스럽게 실사용하는 라이프스타일 스냅샷으로 합성/편집해줘. "
+    )
+    if user_request:
+        return (
+            keep_note + f"다음 요청대로 편집해줘: {user_request} "
+            "상품 자체의 생김새는 원본 사진과 동일해야 한다. 텍스트나 워터마크, 로고 추가는 하지 않는다."
+        )
+    return (
+        keep_note
+        + "실제 사람이 이 상품을 자연스럽게 실사용하는 라이프스타일 스냅샷으로 합성/편집해줘. "
         f"카테고리: {category}. "
         + (f"강조할 특징: {points}. " if points else "")
         + "광고 카탈로그 이미지가 아니라 SNS에 올릴 법한 자연스러운 순간처럼 배경과 상황만 새로 구성하고, "
@@ -398,7 +406,8 @@ def ai_images_generate(product_id: int):
         flash(str(e), "error")
         return redirect(url_for("ai_images", product_id=product_id))
 
-    prompt = _build_lifestyle_prompt(product)
+    user_request = request.form.get("user_request", "").strip()
+    prompt = _build_lifestyle_prompt(product, user_request=user_request or None)
     client = openai_client.OpenAIImageClient(api_key=settings["openai_api_key"])
     try:
         images = client.edit(prompt, source_bytes, n=2, mime_type=mime_type)
@@ -499,6 +508,26 @@ def fetch_images(product_id: int):
     combined = list(dict.fromkeys(gallery + detail))
     db.update_product(product_id, {"image_urls": combined, "detail_image_urls": detail})
     flash(f"대표/추가 이미지 {len(gallery)}장 + 상세페이지 이미지 {len(detail)}장을 가져왔습니다.", "success")
+    return redirect(url_for("product_detail", product_id=product_id))
+
+
+@app.route("/products/<int:product_id>/set-thumbnail", methods=["POST"])
+def set_thumbnail(product_id: int):
+    product = db.get_product(product_id)
+    if not product:
+        flash("상품을 찾을 수 없습니다.", "error")
+        return redirect(url_for("products"))
+
+    chosen = request.form.get("image_url")
+    image_urls = list(product.get("image_urls") or [])
+    if not chosen or chosen not in image_urls:
+        flash("선택한 이미지를 찾을 수 없습니다.", "error")
+        return redirect(url_for("product_detail", product_id=product_id))
+
+    image_urls.remove(chosen)
+    image_urls.insert(0, chosen)
+    db.update_product(product_id, {"image_urls": image_urls, "thumbnail_url": chosen})
+    flash("기본 이미지로 지정했습니다.", "success")
     return redirect(url_for("product_detail", product_id=product_id))
 
 

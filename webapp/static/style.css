@@ -290,14 +290,33 @@ button.danger:hover { background: var(--danger-soft); }
 
 /* ---- 이미지 선택 ------------------------------------------------------ */
 .img-choices { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.img-choices label, .img-choices .img-select-btn {
+  position: relative;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+}
 .img-choices img {
   width: 64px; height: 64px;
   object-fit: cover;
   border-radius: 6px;
   cursor: pointer;
   border: 2px solid var(--border);
+  transition: width 0.15s ease, height 0.15s ease;
 }
 .img-choices img.selected { border-color: var(--accent); }
+.img-choices img:hover {
+  width: 500px;
+  height: 500px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+  border-color: var(--accent);
+}
 
 /* ---- 사용설명서(마크다운 렌더링) --------------------------------------- */
 .manual { max-width: 760px; }

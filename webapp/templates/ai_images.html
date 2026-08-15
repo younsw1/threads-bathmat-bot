@@ -16,13 +16,17 @@
     {% for img in product.image_urls %}
       <label style="display:flex; flex-direction:column; align-items:center; gap:4px;">
         <input type="radio" name="source_image_url" value="{{ img }}" {% if loop.first %}checked{% endif %}>
-        <img src="{{ img }}" style="width:96px;height:96px;object-fit:cover;border-radius:6px;">
+        <img src="{{ img }}">
         {% if img in product.detail_image_urls %}<span class="badge">상세페이지</span>{% endif %}
       </label>
     {% endfor %}
   </div>
+  <label>원하는 이미지 설명 (선택 입력)
+    <input type="text" name="user_request" placeholder="예: 캠핑장 텐트 앞 테이블에 놓인 모습으로 만들어줘">
+  </label>
   <button type="submit">선택한 사진 기반으로 AI 이미지 2장 생성</button>
-  <span class="help">상품 디자인은 그대로 유지하고, 실사용 배경/상황만 AI가 새로 구성합니다.</span>
+  <span class="help">상품 디자인은 그대로 유지합니다. 설명을 적으면 그 요청대로, 비워두면 "실사용
+  라이프스타일" 기본 프롬프트로 생성합니다.</span>
 </form>
 {% endif %}
 
