@@ -92,7 +92,10 @@ CREATE TABLE IF NOT EXISTS scheduled_queue (
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     published_at TEXT,
     post_id TEXT,
-    reply_post_id TEXT
+    reply_post_id TEXT,
+    publish_instagram INTEGER NOT NULL DEFAULT 0,
+    instagram_caption TEXT,
+    instagram_post_id TEXT
 );
 
 CREATE TABLE IF NOT EXISTS generated_images (
@@ -180,6 +183,16 @@ def _migrate(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE posts ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0")
     if "instagram_post_id" not in post_cols:
         conn.execute("ALTER TABLE posts ADD COLUMN instagram_post_id TEXT")
+
+    queue_cols = {row[1] for row in conn.execute("PRAGMA table_info(scheduled_queue)")}
+    if "publish_instagram" not in queue_cols:
+        conn.execute(
+            "ALTER TABLE scheduled_queue ADD COLUMN publish_instagram INTEGER NOT NULL DEFAULT 0"
+        )
+    if "instagram_caption" not in queue_cols:
+        conn.execute("ALTER TABLE scheduled_queue ADD COLUMN instagram_caption TEXT")
+    if "instagram_post_id" not in queue_cols:
+        conn.execute("ALTER TABLE scheduled_queue ADD COLUMN instagram_post_id TEXT")
 
 
 # --- settings -----------------------------------------------------------

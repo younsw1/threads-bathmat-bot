@@ -385,7 +385,8 @@ def product_detail(product_id: int):
         flash("상품을 찾을 수 없습니다.", "error")
         return redirect(url_for("products"))
     reviews = db.list_reviews(product_id)
-    return render_template("product_detail.html", product=product, reviews=reviews)
+    settings = db.get_settings()
+    return render_template("product_detail.html", product=product, reviews=reviews, settings=settings)
 
 
 # --- AI 이미지 생성/수정 --------------------------------------------------
@@ -897,6 +898,9 @@ def queue_add(product_id: int):
         flash(f"글 생성 실패: {e}", "error")
         return redirect(url_for("product_detail", product_id=product_id))
 
+    publish_instagram = request.form.get("publish_instagram") == "on" and bool(
+        product_row.get("thumbnail_url")
+    )
     db.add_queue_item(
         {
             "product_id": product_id,
@@ -908,6 +912,7 @@ def queue_add(product_id: int):
             "image_url": product_row.get("thumbnail_url"),
             "reply_text": _reply_text_for(product_row),
             "source_review_ids": post.source_review_ids,
+            "publish_instagram": 1 if publish_instagram else 0,
         }
     )
     flash("대기열에 초안을 추가했습니다. 검토 후 승인해주세요.", "success")
@@ -1043,23 +1048,46 @@ def queue_sync_to_github():
         flash("GitHub에 반영할 승인된(ready) 항목이 없습니다.", "error")
         return redirect(url_for("queue_list"))
 
-    queue_export = [
-        {
-            "id": item["id"],
-            "product_id": item["product_id"],
-            "text": item["text"],
-            "topic_tag": item["topic_tag"],
-            "hook_category": item["hook_category"],
-            "topic_summary": item["topic_summary"],
-            "image_url": _publicize_image_url(item["id"], item["image_url"]),
-            "reply_text": item["reply_text"],
-            "source_review_ids": item["source_review_ids"],
-        }
-        for item in ready_items
-    ]
+    settings = db.get_settings()
+    claude_client = None
+    queue_export = []
+    for item in ready_items:
+        image_url = _publicize_image_url(item["id"], item["image_url"])
+        publish_instagram = bool(item["publish_instagram"]) and bool(image_url)
+        instagram_caption = None
+        if publish_instagram:
+            try:
+                claude_client = claude_client or anthropic.Anthropic(
+                    api_key=settings["anthropic_api_key"]
+                )
+                product_row = db.get_product(item["product_id"])
+                hashtags = generate_instagram_hashtags(
+                    Product(raw=product_row), topic_tag=item["topic_tag"], client=claude_client
+                )
+                instagram_caption = f"{item['text']}\n\n{' '.join(hashtags)}" if hashtags else item["text"]
+            except Exception as e:  # noqa: BLE001
+                flash(f"Instagram 해시태그 생성 실패 (Instagram은 이번에 건너뜁니다): {e}", "error")
+                publish_instagram = False
+        db.update_queue_item(
+            item["id"], {"publish_instagram": 1 if publish_instagram else 0, "instagram_caption": instagram_caption}
+        )
+        queue_export.append(
+            {
+                "id": item["id"],
+                "product_id": item["product_id"],
+                "text": item["text"],
+                "topic_tag": item["topic_tag"],
+                "hook_category": item["hook_category"],
+                "topic_summary": item["topic_summary"],
+                "image_url": image_url,
+                "reply_text": item["reply_text"],
+                "source_review_ids": item["source_review_ids"],
+                "publish_instagram": publish_instagram,
+                "instagram_caption": instagram_caption,
+            }
+        )
     schedule.save_queue(queue_export)
 
-    settings = db.get_settings()
     try:
         windows = json.loads(settings.get("schedule_windows") or "{}")
     except json.JSONDecodeError:
@@ -1111,6 +1139,7 @@ def queue_pull_from_github():
                 "reply_post_id": entry.get("reply_post_id"),
                 "source_review_ids": item["source_review_ids"],
                 "topic_tag": item["topic_tag"],
+                "instagram_post_id": entry.get("instagram_post_id"),
             }
         )
         db.update_queue_item(
@@ -1120,6 +1149,7 @@ def queue_pull_from_github():
                 "published_at": entry["published_at"],
                 "post_id": entry.get("post_id"),
                 "reply_post_id": entry.get("reply_post_id"),
+                "instagram_post_id": entry.get("instagram_post_id"),
             },
         )
         imported += 1

@@ -91,9 +91,18 @@
 <form method="post" action="{{ url_for('generate_draft', product_id=product.id) }}" style="display:inline">
   <button type="submit">글 생성하기 (바로 발행)</button>
 </form>
-<form method="post" action="{{ url_for('queue_add', product_id=product.id) }}" style="display:inline">
+<form method="post" action="{{ url_for('queue_add', product_id=product.id) }}" style="display:inline-flex; align-items:center; gap:6px;">
+  {% if settings.instagram_access_token and settings.instagram_business_id %}
+  <label style="font-weight:normal;">
+    <input type="checkbox" name="publish_instagram" {% if not product.thumbnail_url %}disabled{% endif %}>
+    Instagram도 함께 예약
+  </label>
+  {% endif %}
   <button type="submit" class="secondary">예약 대기열에 추가</button>
 </form>
+{% if settings.instagram_access_token and settings.instagram_business_id and not product.thumbnail_url %}
+<div class="help">Instagram은 사진이 있어야 예약할 수 있습니다. 기본 이미지를 먼저 선택해주세요.</div>
+{% endif %}
 <a class="btn secondary" href="{{ url_for('product_history', product_id=product.id) }}">발행 이력 보기</a>
 <a class="btn secondary" href="{{ url_for('ai_images', product_id=product.id) }}">AI 이미지</a>
 {% endblock %}

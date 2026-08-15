@@ -19,8 +19,31 @@ from pathlib import Path
 sys.stdout.reconfigure(encoding="utf-8")
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from threads_bot import kakao_client, schedule  # noqa: E402
+from threads_bot import instagram_client, kakao_client, schedule  # noqa: E402
 from threads_bot.threads_client import ThreadsApiError, ThreadsClient  # noqa: E402
+
+
+def _publish_instagram(item: dict, image_urls: list[str]) -> str | None:
+    """Threads 발행이 끝난 뒤 Instagram도 함께 예약된 항목이면 발행한다.
+    실패해도 이미 성공한 Threads 발행에는 영향을 주지 않고 조용히 넘어간다."""
+    if not item.get("publish_instagram") or not image_urls:
+        return None
+    access_token = os.environ.get("INSTAGRAM_ACCESS_TOKEN")
+    ig_user_id = os.environ.get("INSTAGRAM_BUSINESS_ID")
+    if not access_token or not ig_user_id:
+        print("[instagram] INSTAGRAM_ACCESS_TOKEN/INSTAGRAM_BUSINESS_ID 미설정, 건너뜁니다.")
+        return None
+    try:
+        client = instagram_client.InstagramClient(access_token=access_token, ig_user_id=ig_user_id)
+        caption = item.get("instagram_caption") or item["text"]
+        ig_post_id = client.publish_post(caption, image_urls)
+        if item.get("reply_text"):
+            client.comment(ig_post_id, item["reply_text"])
+        print(f"[instagram] 발행 완료 post_id={ig_post_id}")
+        return ig_post_id
+    except instagram_client.InstagramApiError as e:
+        print(f"[instagram] 발행 실패(무시, Threads 발행은 유지됨): {e}")
+        return None
 
 
 def _notify_kakao(text: str) -> None:
@@ -95,7 +118,11 @@ def main() -> int:
         return 1
 
     print(f"[published] post_id={post_id} reply_post_id={reply_post_id}")
-    _notify_kakao(f"✅ 예약 발행 완료 ('{window}' 시간대)\n{item['text'][:80]}")
+    instagram_post_id = _publish_instagram(item, image_urls)
+    kakao_note = f"✅ 예약 발행 완료 ('{window}' 시간대)\n{item['text'][:80]}"
+    if instagram_post_id:
+        kakao_note += "\n📸 Instagram에도 함께 발행됨"
+    _notify_kakao(kakao_note)
 
     for ext in (".png", ".jpg", ".jpeg", ".webp"):
         temp_image = schedule.QUEUE_IMAGES_DIR / f"{item['id']}{ext}"
@@ -112,6 +139,7 @@ def main() -> int:
             "published_at": datetime.now(timezone.utc).isoformat(),
             "post_id": post_id,
             "reply_post_id": reply_post_id,
+            "instagram_post_id": instagram_post_id,
         }
     )
     return 0

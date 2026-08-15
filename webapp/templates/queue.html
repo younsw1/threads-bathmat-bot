@@ -42,6 +42,7 @@
       </div>
       <span class="badge">{{ item.hook_category }}</span>
       {% if item.topic_tag %}<span class="badge">#{{ item.topic_tag }}</span>{% endif %}
+      {% if item.publish_instagram %}<span class="badge">Instagram 동시예약{{ ' 완료' if item.instagram_post_id else '' }}</span>{% endif %}
       {% if item.id in eta_by_id %}<div class="help">예상 발행: {{ eta_by_id[item.id] }} (시간대 안 무작위 시각이라 근사치)</div>{% endif %}
 
       {% if item.status == 'published' %}
