@@ -1,4 +1,4 @@
-name: Threads 토큰 갱신
+name: 듀오포스트 토큰 갱신
 
 on:
   schedule:

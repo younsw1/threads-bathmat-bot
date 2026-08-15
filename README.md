@@ -1,7 +1,7 @@
-# Threads 자동 발행 봇
+# 듀오포스트
 
 스마트스토어 상품을 실제 구매자 후기(또는 상품 정보만)를 재료 삼아 FOMO 후크가 담긴 글로
-재구성해 Claude API로 자동 생성하고 Threads에 발행하는 도구입니다. **BYOK(Bring Your Own Key)
+재구성해 Claude API로 자동 생성하고 Threads·Instagram에 발행하는 도구입니다. **BYOK(Bring Your Own Key)
 로컬 앱**으로 동작합니다 — 본인의 Meta(Threads) 앱, Claude API 키, 네이버 커머스API 키를
 직접 연동해서 쓰고, 모든 데이터는 이 컴퓨터의 로컬 SQLite(`data/app.db`)에만 저장됩니다.
 중앙 서버로 전송되는 데이터는 없습니다.
@@ -167,7 +167,7 @@ python scripts/oauth_setup.py --client-id <APP_ID> --client-secret <APP_SECRET> 
 | `THREADS_USER_ID` | 3단계에서 출력된 사용자 ID |
 | `GH_PAT` | 이 저장소의 Secrets를 쓸 수 있는 [Fine-grained PAT](https://github.com/settings/tokens?type=beta) (Repository permissions → Secrets: Read and write) — 토큰 자동 갱신용 |
 
-3. **Actions** 탭에서 `Threads 자동 발행` 워크플로우를 `workflow_dispatch`로 한 번 수동 실행해
+3. **Actions** 탭에서 `듀오포스트 자동 발행` 워크플로우를 `workflow_dispatch`로 한 번 수동 실행해
    (`dry_run=true`로 먼저) 정상 동작을 확인한 뒤, `dry_run=false`로 실제 발행을 테스트합니다.
 4. 문제없으면 그대로 두면 매일 KST 09:00에 자동 발행되고, 매주 월요일 09:00에 토큰이 자동 갱신됩니다.
 

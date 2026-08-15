@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""로컬 Threads 자동 발행 대시보드.
+"""듀오포스트 — 로컬 Threads·Instagram 자동 발행 대시보드.
 
 실행: python webapp/app.py  (브라우저에서 http://127.0.0.1:8765 자동으로 열림)
 사용자 각자의 Meta/Claude/네이버 API 키를 로컬 SQLite(data/app.db)에 저장해서 쓰는

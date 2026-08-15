@@ -1,4 +1,4 @@
-name: Threads 예약 발행 (랜덤 시간대)
+name: 듀오포스트 예약 발행 (랜덤 시간대)
 
 on:
   schedule:

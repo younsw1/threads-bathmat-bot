@@ -9,7 +9,7 @@ allowlist(포함할 것만 명시)로 동작해서, 새 파일이 실수로 딸�
 추가해야 포함된다.
 
 실행: python scripts/package_release.py
-결과: dist/threads-dashboard-YYYYMMDD.zip
+결과: dist/duopost-YYYYMMDD.zip
 """
 from __future__ import annotations
 
@@ -121,7 +121,7 @@ def _write_reset_files(stage: Path) -> None:
 
 def build() -> Path:
     stamp = datetime.now().strftime("%Y%m%d")
-    stage = OUT_DIR / f"threads-dashboard-{stamp}"
+    stage = OUT_DIR / f"duopost-{stamp}"
     if stage.exists():
         shutil.rmtree(stage)
     stage.mkdir(parents=True)
