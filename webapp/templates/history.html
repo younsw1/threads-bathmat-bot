@@ -14,6 +14,7 @@
         <span class="log-time">{{ p.timestamp }}</span>
         <span class="log-tag">PUBLISHED</span>
         <span class="badge">{{ p.hook_category }}</span>
+        {% if p.instagram_post_id %}<span class="badge">Instagram 동시발행</span>{% endif %}
         <span class="log-msg">{{ p.topic_summary }}{% if p.topic_tag %} · #{{ p.topic_tag }}{% endif %}</span>
       </div>
       <div class="post-preview">{{ p.text }}</div>

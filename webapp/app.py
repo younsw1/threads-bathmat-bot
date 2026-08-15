@@ -24,7 +24,7 @@ import markdown
 import requests
 from flask import Flask, flash, redirect, render_template, request, session, url_for
 
-from threads_bot import db, kakao_client, naver_client, openai_client, schedule
+from threads_bot import db, instagram_client, kakao_client, naver_client, openai_client, schedule
 from threads_bot.content_generator import generate, suggest_selling_points
 from threads_bot.persona import Persona
 from threads_bot.product import Product
@@ -74,6 +74,7 @@ def home():
         ("네이버 커머스API", bool(settings.get("naver_client_id") and settings.get("naver_client_secret"))),
         ("OpenAI (AI 이미지)", bool(settings.get("openai_api_key"))),
         ("카카오 알림", bool(settings.get("kakao_notify_enabled") and settings.get("kakao_refresh_token"))),
+        ("Instagram", bool(settings.get("instagram_access_token") and settings.get("instagram_business_id"))),
     ]
 
     return render_template(
@@ -108,6 +109,8 @@ def setup():
                 "kakao_redirect_uri": request.form.get("kakao_redirect_uri", "").strip(),
                 "kakao_notify_enabled": 1 if request.form.get("kakao_notify_enabled") == "on" else 0,
                 "openai_api_key": request.form.get("openai_api_key", "").strip(),
+                "instagram_access_token": request.form.get("instagram_access_token", "").strip(),
+                "instagram_business_id": request.form.get("instagram_business_id", "").strip(),
             }
         )
         flash("설정을 저장했습니다.", "success")
@@ -255,6 +258,21 @@ def test_kakao():
         flash("카카오톡으로 테스트 메시지를 보냈습니다. 확인해보세요.", "success")
     except kakao_client.KakaoApiError as e:
         flash(f"카카오 테스트 실패: {e}", "error")
+    return redirect(url_for("setup"))
+
+
+@app.route("/setup/test/instagram", methods=["POST"])
+def test_instagram():
+    settings = db.get_settings()
+    try:
+        client = instagram_client.InstagramClient(
+            access_token=settings.get("instagram_access_token") or "",
+            ig_user_id=settings.get("instagram_business_id") or "",
+        )
+        info = client.get_account_info()
+        flash(f"Instagram 연결 성공 (@{info.get('username')}, 게시물 {info.get('media_count')}개)", "success")
+    except instagram_client.InstagramApiError as e:
+        flash(f"Instagram 연결 실패: {e}", "error")
     return redirect(url_for("setup"))
 
 
@@ -753,6 +771,25 @@ def publish(product_id: int):
         flash(f"발행 실패: {e}", "error")
         return redirect(url_for("preview", product_id=product_id))
 
+    instagram_post_id = None
+    if request.form.get("publish_instagram") == "on":
+        if not image_urls:
+            flash("Instagram은 사진이 최소 1장 있어야 발행할 수 있어, 이번엔 건너뛰었습니다.", "error")
+        else:
+            try:
+                ig_client = instagram_client.InstagramClient(
+                    access_token=settings.get("instagram_access_token") or "",
+                    ig_user_id=settings.get("instagram_business_id") or "",
+                )
+                instagram_post_id = ig_client.publish_post(draft["text"], image_urls)
+                if product["link_placement"] == "reply" and product.get("smartstore_url"):
+                    ig_client.comment(
+                        instagram_post_id, f"🔗 상품 보러가기\n{product['smartstore_url']}"
+                    )
+                flash("Instagram에도 발행했습니다.", "success")
+            except instagram_client.InstagramApiError as e:
+                flash(f"Threads는 성공했지만 Instagram 발행은 실패했습니다: {e}", "error")
+
     db.add_post(
         {
             "product_id": product_id,
@@ -765,6 +802,7 @@ def publish(product_id: int):
             "reply_post_id": reply_post_id,
             "source_review_ids": draft["source_review_ids"],
             "topic_tag": draft.get("topic_tag"),
+            "instagram_post_id": instagram_post_id,
         }
     )
     notify_kakao(

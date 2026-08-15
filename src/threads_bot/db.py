@@ -28,7 +28,9 @@ CREATE TABLE IF NOT EXISTS settings (
     kakao_access_token TEXT,
     kakao_refresh_token TEXT,
     kakao_notify_enabled INTEGER NOT NULL DEFAULT 0,
-    openai_api_key TEXT
+    openai_api_key TEXT,
+    instagram_access_token TEXT,
+    instagram_business_id TEXT
 );
 
 CREATE TABLE IF NOT EXISTS products (
@@ -72,7 +74,8 @@ CREATE TABLE IF NOT EXISTS posts (
     reply_post_id TEXT,
     source_review_ids TEXT DEFAULT '[]',
     topic_tag TEXT,
-    is_favorite INTEGER NOT NULL DEFAULT 0
+    is_favorite INTEGER NOT NULL DEFAULT 0,
+    instagram_post_id TEXT
 );
 
 CREATE TABLE IF NOT EXISTS scheduled_queue (
@@ -157,6 +160,10 @@ def _migrate(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE settings ADD COLUMN kakao_notify_enabled INTEGER NOT NULL DEFAULT 0")
     if "openai_api_key" not in existing:
         conn.execute("ALTER TABLE settings ADD COLUMN openai_api_key TEXT")
+    if "instagram_access_token" not in existing:
+        conn.execute("ALTER TABLE settings ADD COLUMN instagram_access_token TEXT")
+    if "instagram_business_id" not in existing:
+        conn.execute("ALTER TABLE settings ADD COLUMN instagram_business_id TEXT")
 
     product_cols = {row[1] for row in conn.execute("PRAGMA table_info(products)")}
     if "origin_product_no" not in product_cols:
@@ -171,6 +178,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE posts ADD COLUMN topic_tag TEXT")
     if "is_favorite" not in post_cols:
         conn.execute("ALTER TABLE posts ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0")
+    if "instagram_post_id" not in post_cols:
+        conn.execute("ALTER TABLE posts ADD COLUMN instagram_post_id TEXT")
 
 
 # --- settings -----------------------------------------------------------

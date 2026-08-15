@@ -40,6 +40,12 @@
     <input type="checkbox" name="use_image" {% if draft.selected_images %}checked{% endif %}
       {% if not draft.selected_images %}disabled{% endif %}> 선택한 이미지와 함께 발행 ({{ draft.selected_images | length }}장)
   </label>
+  <label>
+    <input type="checkbox" name="publish_instagram" {% if not draft.selected_images %}disabled{% endif %}>
+    Instagram에도 함께 발행
+  </label>
+  <div class="help">Instagram은 사진이 없으면 발행할 수 없습니다. 위 "선택한 이미지와 함께 발행"도
+  함께 체크해야 실제로 사진이 전달됩니다.</div>
   <button type="submit">Threads에 발행</button>
 </form>
 
