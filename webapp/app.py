@@ -481,7 +481,7 @@ def ai_images_use(product_id: int, image_id: int):
         "올려야 합니다 — 다음에 필요하시면 안내해드릴게요.",
         "success",
     )
-    return redirect(url_for("products"))
+    return redirect(url_for("product_detail", product_id=product_id))
 
 
 @app.route("/products/<int:product_id>/fetch-images", methods=["POST"])
