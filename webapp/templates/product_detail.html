@@ -11,7 +11,7 @@
     <form method="post" action="{{ url_for('set_thumbnail', product_id=product.id) }}"
           style="display:flex; flex-direction:column; align-items:center; gap:4px;">
       <input type="hidden" name="image_url" value="{{ img }}">
-      <button type="submit" class="img-select-btn" title="기본 이미지로 지정">
+      <button type="submit" class="img-select-btn">
         <img src="{{ img }}" class="{{ 'selected' if img == product.thumbnail_url else '' }}">
         <img src="{{ img }}" class="img-zoom-preview" aria-hidden="true">
       </button>

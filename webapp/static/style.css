@@ -299,6 +299,12 @@ button.danger:hover { background: var(--danger-soft); }
   font: inherit;
   line-height: 0;
 }
+/* flex 컨테이너 안에서는 z-index:auto인 항목끼리 DOM 순서대로 쌓여서, 뒤쪽(오른쪽/다음 줄)
+   썸네일이 앞선 항목의 확대 미리보기 위로 뚫고 나올 수 있다. hover 중인 항목 자체를
+   양수 z-index로 끌어올려 확실하게 맨 위 스택으로 보낸다. */
+.img-choices label:hover, .img-choices .img-select-btn:hover {
+  z-index: 200;
+}
 .img-choices img {
   width: 64px; height: 64px;
   object-fit: cover;
