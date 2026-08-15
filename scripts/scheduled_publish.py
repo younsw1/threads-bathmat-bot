@@ -117,7 +117,7 @@ def main() -> int:
         access_token=os.environ["THREADS_ACCESS_TOKEN"],
         user_id=os.environ["THREADS_USER_ID"],
     )
-    image_urls = [item["image_url"]] if item.get("image_url") else []
+    image_urls = item.get("image_urls") or ([item["image_url"]] if item.get("image_url") else [])
 
     try:
         post_id = client.publish_post(
@@ -138,9 +138,9 @@ def main() -> int:
         kakao_note += "\n📸 Instagram에도 함께 발행됨"
     _notify_kakao(kakao_note)
 
-    for ext in (".png", ".jpg", ".jpeg", ".webp"):
-        temp_image = schedule.QUEUE_IMAGES_DIR / f"{item['id']}{ext}"
-        if temp_image.exists():
+    # "{id}.ext"는 예전 단일 이미지 방식, "queue-{id}-{순번}.ext"는 최대 3장 다중 이미지 방식.
+    for pattern in (f"{item['id']}.*", f"queue-{item['id']}-*.*"):
+        for temp_image in schedule.QUEUE_IMAGES_DIR.glob(pattern):
             temp_image.unlink()
             print(f"[cleanup] {temp_image} 삭제 (발행 완료, 더 이상 공개 호스팅 불필요)")
 

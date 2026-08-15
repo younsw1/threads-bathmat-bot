@@ -1,0 +1,13 @@
+<div class="img-choices img-order-picker" id="{{ picker_id }}" data-max="{{ max_images | default(3) }}"
+     data-field-name="{{ field_name | default('image_url') }}" data-initial='{{ (selected or []) | tojson }}'>
+  {% for img in images %}
+    <button type="button" class="img-select-btn img-order-item" data-url="{{ img }}">
+      <img src="{{ img }}" class="{{ 'selected' if img in (selected or []) else '' }}">
+      <img src="{{ img }}" class="img-zoom-preview" aria-hidden="true">
+      <span class="img-order-badge"></span>
+    </button>
+  {% endfor %}
+</div>
+<div class="img-order-hidden" data-for="{{ picker_id }}"></div>
+<div class="help">클릭한 순서대로 1~{{ max_images | default(3) }}번이 매겨집니다 (다시 클릭하면 선택 해제).
+선택됨: <span class="img-order-count" data-for="{{ picker_id }}">{{ (selected or []) | length }}</span>장</div>

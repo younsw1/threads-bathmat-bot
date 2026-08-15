@@ -340,6 +340,26 @@ button.danger:hover { background: var(--danger-soft); }
   visibility: visible;
 }
 
+/* ---- 순서 지정 이미지 선택 (최대 3장) ----------------------------------- */
+.img-order-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 210;
+}
+.img-order-badge.visible { display: flex; }
+
 /* ---- AI 이미지 생성 진행률 오버레이 ------------------------------------- */
 .progress-overlay {
   display: none;

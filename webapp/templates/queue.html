@@ -33,7 +33,11 @@
 
 {% for item in items %}
   <div class="card">
-    {% if item.image_url %}<img src="{{ item.image_url }}">{% endif %}
+    {% if item.image_urls %}
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        {% for img in item.image_urls %}<img src="{{ img }}" style="width:64px;height:64px;object-fit:cover;border-radius:6px;">{% endfor %}
+      </div>
+    {% endif %}
     <div class="meta">
       <div class="log-line">
         <span class="log-dot log-dot-{{ 'ok' if item.status == 'published' else 'pending' if item.status == 'ready' else 'idle' }}"></span>
@@ -42,6 +46,7 @@
       </div>
       <span class="badge">{{ item.hook_category }}</span>
       {% if item.topic_tag %}<span class="badge">#{{ item.topic_tag }}</span>{% endif %}
+      {% if item.image_urls | length > 1 %}<span class="badge">이미지 {{ item.image_urls | length }}장</span>{% endif %}
       {% if item.publish_instagram %}<span class="badge">Instagram 동시예약{{ ' 완료' if item.instagram_post_id else '' }}</span>{% endif %}
       {% if item.status != 'published' %}
       <form method="post" action="{{ url_for('queue_set_date', item_id=item.id) }}" style="display:inline-flex; align-items:center; gap:4px; margin-top:4px;">

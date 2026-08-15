@@ -730,9 +730,9 @@ def select_image(product_id: int):
     draft = session.get(f"draft_{product_id}")
     if draft:
         selected = request.form.getlist("image_url")
-        if len(selected) > 20:
-            flash("이미지는 최대 20장까지 선택할 수 있습니다 (Threads 캐러셀 제한).", "error")
-            selected = selected[:20]
+        if len(selected) > 3:
+            flash("이미지는 최대 3장까지 선택할 수 있습니다.", "error")
+            selected = selected[:3]
         draft["selected_images"] = selected
         session[f"draft_{product_id}"] = draft
     return redirect(url_for("preview", product_id=product_id))
@@ -754,9 +754,7 @@ def publish(product_id: int):
 
     has_local_images = any(u.startswith("/static/generated/") for u in image_urls)
     if has_local_images:
-        image_urls = [
-            _publicize_image_url(f"direct-{product_id}-{i}", u) for i, u in enumerate(image_urls)
-        ]
+        image_urls = _publicize_image_urls(f"direct-{product_id}", image_urls)
         add = _run_git("add", "data/queue_images")
         if add.returncode != 0:
             flash(f"AI 이미지 공개 업로드 실패(git add): {add.stderr}", "error")
@@ -910,9 +908,10 @@ def queue_add(product_id: int):
         flash(f"글 생성 실패: {e}", "error")
         return redirect(url_for("product_detail", product_id=product_id))
 
-    publish_instagram = request.form.get("publish_instagram") == "on" and bool(
-        product_row.get("thumbnail_url")
-    )
+    image_urls = request.form.getlist("image_url")[:3]
+    if not image_urls and product_row.get("thumbnail_url"):
+        image_urls = [product_row["thumbnail_url"]]
+    publish_instagram = request.form.get("publish_instagram") == "on" and bool(image_urls)
     scheduled_date = request.form.get("scheduled_date", "").strip() or None
     if scheduled_date and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", scheduled_date):
         scheduled_date = None
@@ -924,7 +923,8 @@ def queue_add(product_id: int):
             "topic_tag": post.topic_tag,
             "hook_category": post.hook_category,
             "topic_summary": post.topic_summary,
-            "image_url": product_row.get("thumbnail_url"),
+            "image_url": image_urls[0] if image_urls else None,
+            "image_urls": image_urls,
             "reply_text": _reply_text_for(product_row),
             "source_review_ids": post.source_review_ids,
             "publish_instagram": 1 if publish_instagram else 0,
@@ -1068,6 +1068,10 @@ def _publicize_image_url(item_id: int, image_url: str | None) -> str | None:
     return schedule.raw_github_url(f"data/queue_images/{dest_path.name}") or image_url
 
 
+def _publicize_image_urls(key_prefix: str, image_urls: list[str]) -> list[str]:
+    return [_publicize_image_url(f"{key_prefix}-{i}", u) for i, u in enumerate(image_urls)]
+
+
 @app.route("/queue/sync-to-github", methods=["POST"])
 def queue_sync_to_github():
     ready_items = sorted(
@@ -1082,8 +1086,8 @@ def queue_sync_to_github():
     claude_client = None
     queue_export = []
     for item in ready_items:
-        image_url = _publicize_image_url(item["id"], item["image_url"])
-        publish_instagram = bool(item["publish_instagram"]) and bool(image_url)
+        image_urls = _publicize_image_urls(f"queue-{item['id']}", item["image_urls"])
+        publish_instagram = bool(item["publish_instagram"]) and bool(image_urls)
         instagram_caption = None
         if publish_instagram:
             try:
@@ -1109,7 +1113,8 @@ def queue_sync_to_github():
                 "topic_tag": item["topic_tag"],
                 "hook_category": item["hook_category"],
                 "topic_summary": item["topic_summary"],
-                "image_url": image_url,
+                "image_url": image_urls[0] if image_urls else None,
+                "image_urls": image_urls,
                 "reply_text": item["reply_text"],
                 "source_review_ids": item["source_review_ids"],
                 "publish_instagram": publish_instagram,

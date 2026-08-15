@@ -19,18 +19,16 @@
 {% endif %}
 
 {% if product.image_urls %}
-<h2>첨부 이미지 선택 ({{ draft.selected_images | length }}장 선택됨)</h2>
-<p class="help">1장이면 단일 이미지, 2장 이상이면 캐러셀(최대 20장)로 발행됩니다. 0장이면 텍스트만 발행됩니다.</p>
+<h2>첨부 이미지 선택 (최대 3장)</h2>
+<p class="help">사진을 클릭한 순서대로 1~3번이 매겨집니다. 1장이면 단일 이미지, 2장 이상이면
+캐러셀로 Threads/Instagram에 그 순서 그대로 발행됩니다. 0장이면 텍스트만 발행됩니다.</p>
 <form method="post" action="{{ url_for('select_image', product_id=product.id) }}">
-  <div class="img-choices">
-    {% for img in product.image_urls %}
-      <label style="display:flex; flex-direction:column; align-items:center; gap:4px;">
-        <img src="{{ img }}" class="{{ 'selected' if img in draft.selected_images else '' }}">
-        <img src="{{ img }}" class="img-zoom-preview" aria-hidden="true">
-        <input type="checkbox" name="image_url" value="{{ img }}" {% if img in draft.selected_images %}checked{% endif %}>
-      </label>
-    {% endfor %}
-  </div>
+  {% set images = product.image_urls %}
+  {% set selected = draft.selected_images %}
+  {% set picker_id = "preview-img-picker" %}
+  {% set max_images = 3 %}
+  {% set field_name = "image_url" %}
+  {% include "_image_order_picker.html" %}
   <button type="submit" class="secondary">선택 적용</button>
 </form>
 {% endif %}

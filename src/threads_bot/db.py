@@ -87,6 +87,7 @@ CREATE TABLE IF NOT EXISTS scheduled_queue (
     hook_category TEXT,
     topic_summary TEXT,
     image_url TEXT,
+    image_urls TEXT DEFAULT '[]',
     reply_text TEXT,
     source_review_ids TEXT DEFAULT '[]',
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -196,6 +197,12 @@ def _migrate(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE scheduled_queue ADD COLUMN instagram_post_id TEXT")
     if "scheduled_date" not in queue_cols:
         conn.execute("ALTER TABLE scheduled_queue ADD COLUMN scheduled_date TEXT")
+    if "image_urls" not in queue_cols:
+        conn.execute("ALTER TABLE scheduled_queue ADD COLUMN image_urls TEXT DEFAULT '[]'")
+        conn.execute(
+            "UPDATE scheduled_queue SET image_urls = json_array(image_url) "
+            "WHERE image_url IS NOT NULL AND image_url != ''"
+        )
 
 
 # --- settings -----------------------------------------------------------
@@ -433,6 +440,7 @@ def list_style_examples(limit: int = 5, path: Path = DEFAULT_DB_PATH) -> list[di
 def _queue_row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
     d = dict(row)
     d["source_review_ids"] = json.loads(d.get("source_review_ids") or "[]")
+    d["image_urls"] = json.loads(d.get("image_urls") or "[]")
     return d
 
 
@@ -440,6 +448,8 @@ def add_queue_item(data: dict[str, Any], path: Path = DEFAULT_DB_PATH) -> int:
     data = dict(data)
     if "source_review_ids" in data and not isinstance(data["source_review_ids"], str):
         data["source_review_ids"] = json.dumps(data["source_review_ids"], ensure_ascii=False)
+    if "image_urls" in data and not isinstance(data["image_urls"], str):
+        data["image_urls"] = json.dumps(data["image_urls"], ensure_ascii=False)
     cols = ", ".join(data.keys())
     placeholders = ", ".join("?" for _ in data)
     with connect(path) as conn:
@@ -480,6 +490,8 @@ def update_queue_item(item_id: int, values: dict[str, Any], path: Path = DEFAULT
     values = dict(values)
     if "source_review_ids" in values and not isinstance(values["source_review_ids"], str):
         values["source_review_ids"] = json.dumps(values["source_review_ids"], ensure_ascii=False)
+    if "image_urls" in values and not isinstance(values["image_urls"], str):
+        values["image_urls"] = json.dumps(values["image_urls"], ensure_ascii=False)
     if not values:
         return
     cols = ", ".join(f"{k} = ?" for k in values)
