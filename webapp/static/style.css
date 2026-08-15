@@ -309,8 +309,10 @@ button.danger:hover { background: var(--danger-soft); }
 .img-choices img.selected { border-color: var(--accent); }
 
 /* 확대 미리보기: 실제 썸네일 크기는 절대 바뀌지 않고, 투명도만 전환되는 별도
-   레이어라 레이아웃이 흔들리거나 다른 카드가 밀리는 일이 없다. */
-.img-zoom-preview {
+   레이어라 레이아웃이 흔들리거나 다른 카드가 밀리는 일이 없다.
+   선택자를 ".img-choices .img-zoom-preview"로 써서 위 ".img-choices img"
+   (width:64px 등)보다 우선순위를 높게 잡아야 500px가 실제로 적용된다. */
+.img-choices .img-zoom-preview {
   position: absolute;
   top: 0;
   left: 0;
