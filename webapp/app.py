@@ -301,6 +301,17 @@ def published_products():
     return render_template("products_published.html", products=db.list_published_products())
 
 
+@app.route("/products/<int:product_id>/delete", methods=["POST"])
+def delete_product(product_id: int):
+    product = db.get_product(product_id)
+    if not product:
+        flash("상품을 찾을 수 없습니다.", "error")
+        return redirect(url_for("products"))
+    db.delete_product(product_id)
+    flash(f"'{product['name']}' 상품을 삭제했습니다.", "success")
+    return redirect(request.referrer or url_for("products"))
+
+
 @app.route("/products/sync", methods=["POST"])
 def sync_products():
     settings = db.get_settings()

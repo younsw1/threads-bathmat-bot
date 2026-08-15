@@ -287,6 +287,13 @@ def update_product(product_id: int, values: dict[str, Any], path: Path = DEFAULT
         )
 
 
+def delete_product(product_id: int, path: Path = DEFAULT_DB_PATH) -> None:
+    """상품을 삭제한다. 후기/발행 이력/대기열 항목/생성된 이미지 기록도 함께 삭제된다
+    (ON DELETE CASCADE)."""
+    with connect(path) as conn:
+        conn.execute("DELETE FROM products WHERE id = ?", (product_id,))
+
+
 def _product_row_to_dict(row: sqlite3.Row) -> dict[str, Any]:
     d = dict(row)
     for field in _JSON_PRODUCT_FIELDS:

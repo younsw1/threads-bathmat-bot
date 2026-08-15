@@ -24,6 +24,10 @@
       {% if p.smartstore_url %}<div class="help"><a href="{{ p.smartstore_url }}" target="_blank">{{ p.smartstore_url }}</a></div>{% endif %}
       <a class="btn secondary" href="{{ url_for('product_history', product_id=p.id) }}">발행 이력</a>
       {% if p.id in pending_product_ids %}<span class="badge">발행대기</span>{% endif %}
+      <form method="post" action="{{ url_for('delete_product', product_id=p.id) }}" style="display:inline"
+            onsubmit="return confirm('{{ '이 상품은 예약 대기열에 발행대기 중인 글이 있습니다. 삭제하면 그 글도 함께 삭제됩니다. 계속할까요?' if p.id in pending_product_ids else '이 상품을 삭제할까요? 등록된 후기도 함께 삭제됩니다.' }}');">
+        <button type="submit" class="danger">삭제</button>
+      </form>
     </div>
   </div>
 {% endfor %}
