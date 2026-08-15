@@ -5,7 +5,10 @@ from dataclasses import dataclass
 
 import requests
 
-GRAPH_BASE = "https://graph.facebook.com/v21.0"
+GRAPH_BASE = "https://graph.instagram.com/v21.0"
+# 참고: "Instagram 로그인이 포함된 API"(새 방식)로 발급받은 토큰(IGAA로 시작)은
+# graph.facebook.com이 아니라 graph.instagram.com으로 호출해야 한다. Facebook 페이지에
+# 연결하는 옛날 방식(Page Access Token, EAA로 시작)을 쓴다면 graph.facebook.com이 맞다.
 
 CAPTION_MAX_LEN = 2200  # Instagram 캡션 글자 수 제한
 
