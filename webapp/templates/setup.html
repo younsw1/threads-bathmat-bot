@@ -79,22 +79,26 @@
 
   <fieldset>
     <legend>5. Instagram (선택)</legend>
-    <div class="help">1) 인스타그램 앱에서 계정을 "프로페셔널 계정"(비즈니스/크리에이터)으로 전환하고,
-Facebook 페이지에 연결합니다 (설정 → 계정 유형 및 도구).
-2) developers.facebook.com에서 앱에 "Instagram Graph API" 사용 사례를 추가합니다
-(Threads용으로 이미 만든 앱을 그대로 재사용해도 됩니다).
-3) Graph API Explorer(또는 정식 OAuth)로 pages_show_list, instagram_basic,
-instagram_content_publish 권한이 포함된 페이지 액세스 토큰을 발급받습니다.
-4) 브라우저에서 아래 주소를 열어(TOKEN, 연결된 페이지ID를 채워서) Instagram 비즈니스 계정 ID를 확인합니다:
-graph.facebook.com/{페이지ID}?fields=instagram_business_account&access_token={TOKEN}
-5) 발급받은 토큰과 ID를 아래에 입력하고 저장합니다.</div>
-    <label>액세스 토큰 (페이지 액세스 토큰)
+    <div class="help">1) 인스타그램 앱에서 계정을 "프로페셔널 계정"(비즈니스)으로 전환합니다
+(프로필 편집 화면 맨 아래 "프로페셔널 계정으로 전환"). Facebook 페이지 연결은 필요 없습니다.
+2) developers.facebook.com → 내 앱 → (Threads용으로 만든 앱 재사용 가능) → 오른쪽 위
+"이용 사례 추가" → "Instagram에서 메시지 및 콘텐츠 관리" 추가.
+3) 왼쪽 메뉴 "앱 역할 → 역할"에서 "사람 추가" → 이 Instagram 계정을 "Instagram 테스터"로
+초대 → 그 Instagram 계정으로 로그인해서 초대를 수락합니다 (안 하면 다음 단계가 막힙니다).
+4) "이용 사례 → Instagram API → 맞춤 설정"으로 들어가 "1. 필수 메시지 권한 추가"에서
+"Add all required permissions" 클릭, "권한 및 기능" 탭에서 instagram_business_content_publish도
+추가합니다.
+5) "2. 액세스 토큰 생성"에서 "계정 추가" → 3번에서 초대한 계정으로 로그인/승인 →
+계정이 추가되면 그 아래 "토큰 생성" 클릭 → 발급된 토큰과, 계정명 아래 표시된 계정 ID(숫자)를
+복사해 아래에 입력하고 저장합니다.</div>
+    <label>액세스 토큰
       <input type="password" name="instagram_access_token" value="{{ settings.instagram_access_token or '' }}">
     </label>
-    <label>Instagram 비즈니스 계정 ID
+    <label>Instagram 계정 ID
       <input type="text" name="instagram_business_id" value="{{ settings.instagram_business_id or '' }}">
     </label>
-    <div class="help">⚠️ Instagram은 Threads와 달리 텍스트만으로는 발행할 수 없고 사진이 최소 1장 필요합니다.</div>
+    <div class="help">⚠️ Instagram은 Threads와 달리 텍스트만으로는 발행할 수 없고 사진이 최소 1장 필요합니다.
+토큰이 "IGAA"로 시작해야 정상입니다 ("EAA"로 시작하면 다른 방식으로 발급된 토큰이라 작동하지 않습니다).</div>
   </fieldset>
 
   <button type="submit">저장</button>
