@@ -55,11 +55,17 @@
         </label>
         <button type="submit" class="secondary">저장</button>
       </form>
-      <div class="help">{{ '지정한 날짜의 시간대에 발행됩니다.' if item.scheduled_date else '날짜 미지정 — 대기열 순서대로 다음 활성 시간대에 자동 발행됩니다.' }}</div>
+      {% if item.scheduled_date %}
+      <div class="help">지정한 날짜({{ item.scheduled_date }})의 활성 시간대에 발행됩니다.
+      (이미 지난 날짜라면 다음 활성 시간대에 바로 발행 대상이 됩니다.)</div>
+      {% else %}
+      <div class="help">날짜 미지정 — 대기열 순서대로 다음 활성 시간대에 자동 발행됩니다.
+      {% if item.id in eta_by_id %}대기 순번 기준으로는 대략 {{ eta_by_id[item.id] }} 발행될 것으로
+      보입니다 (대기열 구성이 바뀌면 함께 바뀌는 근사치이며, 저장되는 값은 아닙니다).{% endif %}</div>
+      {% endif %}
       {% elif item.scheduled_date %}
       <span class="badge">발행일: {{ item.scheduled_date }}</span>
       {% endif %}
-      {% if item.id in eta_by_id %}<div class="help">예상 발행: {{ eta_by_id[item.id] }} (시간대 안 무작위 시각이라 근사치)</div>{% endif %}
 
       {% if item.status == 'published' %}
         <div class="post-preview">{{ item.text }}</div>
